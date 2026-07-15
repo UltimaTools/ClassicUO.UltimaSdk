@@ -180,7 +180,22 @@ ClassicUO.UltimaSdk/
 
 ## Updating from Upstream
 
-When ClassicUO updates its file-reading code, this repository can be sync'd by cherry-picking the relevant changes from [ClassicUO/ClassicUO](https://github.com/ClassicUO/ClassicUO). The IO, Loaders, and Utility directories track the upstream source closely.
+The IO, Loaders, and Utility directories track the upstream [ClassicUO/ClassicUO](https://github.com/ClassicUO/ClassicUO) source closely. When syncing, cherry-pick relevant changes and apply the dual-targeting guards documented in `AGENTS.md`.
+
+### Sync History
+
+| Date | Upstream Commit | Key Changes |
+|------|----------------|-------------|
+| 2026-07-15 | `5a5cfd350` (HEAD) | **Initial sync after extraction from NeoUO fork** — synced IO, Loaders, and Utility files to align with upstream. Cherry-picked: `c34abad08` (multi reading fix), `ffc3d509e` (BWT decompress rewrite), upstream removal of `NETFRAMEWORK` conditionals and `SetForceManagedZlib`, UOFileManager constructor overload with `UOFilesOverrideMap`, `Verdata.Load()` call, case-insensitive file path for non-Windows, style alignment (`var`, block bodies). Added net472 dual-targeting guards for `[InlineArray]`, `Encoding.GetString(Span)`, `Unsafe.SkipInit`, `Span<T>.Sort()`. |
+
+### Next Sync Steps
+
+1. Clone the upstream: `git clone git@github.com:ClassicUO/ClassicUO.git`
+2. Generate diffs: `git diff --no-index ClassicUO.UltimaSdk/IO upstream/ClassicUO.IO/` (repeat for Loaders, Utility)
+3. Apply substantive changes (skip pure style changes unless aligning)
+4. Add `#if NETFRAMEWORK` guards for any new uses of: `[InlineArray]`, `Encoding.GetString(Span)`, `Unsafe.SkipInit`, `Span<T>.Sort()`, `BinaryReader.Read(Span)`
+5. Update this table with the new sync date and upstream commit hash
+6. Update `AGENTS.md` if new compatibility patterns are needed
 
 ---
 
