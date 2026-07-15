@@ -40,7 +40,7 @@ namespace Ultima
 
         public static string RootDir { get; set; }
 
-        public static Dictionary<string, string> MulPath { get; set; }
+        public static Dictionary<string, string> MulPath { get; set; } = new Dictionary<string, string>();
 
         public static bool MulPathLocked
         {
