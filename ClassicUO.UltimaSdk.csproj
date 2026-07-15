@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;net10.0</TargetFrameworks>
+    <TargetFrameworks>net472;net8.0-windows;net10.0</TargetFrameworks>
     <AssemblyName>ClassicUO.UltimaSdk</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
     <LangVersion>preview</LangVersion>
@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="System.Drawing.Common" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <PackageReference Include="System.Drawing.Common" />
   </ItemGroup>
 
