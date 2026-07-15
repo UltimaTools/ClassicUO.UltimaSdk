@@ -1,18 +1,18 @@
-// SPDX-License-Identifier: BSD-2-Clause
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.IO;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ClassicUO.Assets
 {
     public sealed class ClilocLoader : UOFileLoader
     {
+        private const string MISSING_CLILOC_TEXT = "MegaCliloc: missing {0} [~1_val~] [~2_val~]";
         private string _cliloc;
         private readonly Dictionary<int, string> _entries = new Dictionary<int, string>();
 
@@ -69,12 +69,12 @@ namespace ClassicUO.Assets
             using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
 
             int bytesRead;
-            int totalRead = 0;
-            byte[] buf = new byte[fileStream.Length];
+            var totalRead = 0;
+            var buf = new byte[fileStream.Length];
             while ((bytesRead = fileStream.Read(buf, totalRead, Math.Min(4096, buf.Length - totalRead))) > 0)
                 totalRead += bytesRead;
 
-            byte[] output = buf[3] == 0x8E /*|| FileManager.Version >= ClientVersion.CV_7010400*/ ? BwtDecompress.Decompress(buf) : buf;
+            var output = buf[3] == 0x8E /*|| FileManager.Version >= ClientVersion.CV_7010400*/ ? BwtDecompress.Decompress(buf) : buf;
 
             var reader = new StackDataReader(output);
             reader.ReadInt32LE();
@@ -82,70 +82,54 @@ namespace ClassicUO.Assets
 
             while (reader.Remaining > 0)
             {
-                int number = reader.ReadInt32LE();
-                byte flag = reader.ReadUInt8();
-                short length = reader.ReadInt16LE();
-                string text = string.Intern(reader.ReadUTF8(length));
+                var number = reader.ReadInt32LE();
+                var flag = reader.ReadUInt8();
+                var length = reader.ReadInt16LE();
+                var text = string.Intern(reader.ReadUTF8(length));
 
                 _entries[number] = text;
             }
         }
 
-        public override void ClearResources() => _entries.Clear();
+        public override void ClearResources()
+        {
+            _entries.Clear();
+        }
 
         public IReadOnlyDictionary<int, string> AllEntries => _entries;
 
-        public string GetString(int number)
+        [return: NotNull]
+        public string GetString(int clilocNum, string fallback = null)
         {
-            _entries.TryGetValue(number, out string text);
+            _entries.TryGetValue(clilocNum, out string text);
+
+            return text ?? fallback ?? string.Format(MISSING_CLILOC_TEXT, clilocNum);
+        }
+
+        [return: NotNull]
+        public string GetString(int clilocNum, bool camelcase, string fallback = "")
+        {
+            string text = GetString(clilocNum, fallback);
+
+            if (camelcase)
+            {
+                return StringHelper.CapitalizeAllWords(text);
+            }
 
             return text;
         }
 
-        public string GetString(int number, string replace)
-        {
-            string s = GetString(number);
-
-            if (string.IsNullOrEmpty(s))
-            {
-                s = replace;
-            }
-
-            return s;
-        }
-
-        public string GetString(int number, bool camelcase, string replace = "")
-        {
-            string s = GetString(number);
-
-            if (string.IsNullOrEmpty(s) && !string.IsNullOrEmpty(replace))
-            {
-                s = replace;
-            }
-
-            if (camelcase && !string.IsNullOrEmpty(s))
-            {
-                s = StringHelper.CapitalizeAllWords(s);
-            }
-
-            return s;
-        }
-
+        [return: NotNull]
         public unsafe string Translate(int clilocNum, string arg = "", bool capitalize = false)
         {
             string baseCliloc = GetString(clilocNum);
-
-            if (baseCliloc == null)
-            {
-                return null;
-            }
 
             if (arg == null)
             {
                 arg = "";
             }
 
-            ReadOnlySpan<char> roChars = arg.AsSpan();
+            var roChars = arg.AsSpan();
 
 
             // get count of valid args
@@ -194,7 +178,7 @@ namespace ClassicUO.Assets
             locations[totalArgs - 1].Item1 = trueStart;
             locations[totalArgs - 1].Item2 = i;
 
-            var sb = new ValueStringBuilder(baseCliloc.AsSpan());
+            ValueStringBuilder sb = new ValueStringBuilder(baseCliloc.AsSpan());
             {
                 int index, pos = 0;
 
@@ -250,7 +234,7 @@ namespace ClassicUO.Assets
 
                     --index;
 
-                    ReadOnlySpan<char> a = index < 0 || index >= totalArgs ? string.Empty.AsSpan() : arg.AsSpan().Slice(locations[index].Item1, locations[index].Item2 - locations[index].Item1);
+                    var a = index < 0 || index >= totalArgs ? string.Empty.AsSpan() : arg.AsSpan().Slice(locations[index].Item1, locations[index].Item2 - locations[index].Item1);
 
                     if (a.Length > 1)
                     {
@@ -258,7 +242,7 @@ namespace ClassicUO.Assets
                         {
                             if (int.TryParse(a.Slice(1).ToString(), out int id1))
                             {
-                                string ss = GetString(id1);
+                                var ss = GetString(id1);
 
                                 if (string.IsNullOrEmpty(ss))
                                 {

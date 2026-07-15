@@ -17,20 +17,20 @@ namespace ClassicUO.Utility
 
             using (var reader = new BinaryReader(new MemoryStream(buffer)))
             {
-                uint header = reader.ReadUInt32();
-                uint len = 0u;
+                var header = reader.ReadUInt32();
+                var len = 0u;
 
-                byte firstChar = reader.ReadByte();
+                var firstChar = reader.ReadByte();
 
                 Span<ushort> table = new ushort[256 * 256];
                 BuildTable(table, firstChar);
 
-                byte[] list = new byte[reader.BaseStream.Length - 4];
-                int i = 0;
+                var list = new byte[reader.BaseStream.Length - 4];
+                var i = 0;
                 while (reader.BaseStream.Position < reader.BaseStream.Length)
                 {
-                    byte currentValue = firstChar;
-                    ushort value = table[currentValue];
+                    var currentValue = firstChar;
+                    var value = table[currentValue];
                     if (currentValue > 0)
                     {
                         do
@@ -58,7 +58,7 @@ namespace ClassicUO.Utility
             byte secondByte = 0;
             for (int i = 0; i < 256 * 256; i++)
             {
-                ushort val = (ushort)(firstByte + (secondByte << 8));
+                var val = (ushort)(firstByte + (secondByte << 8));
                 table[index++] = val;
 
                 firstByte++;
@@ -76,16 +76,21 @@ namespace ClassicUO.Utility
         }
 
 #if NETFRAMEWORK
-        private static void SpanSort(Span<ushort> span)
+        static void SpanSort(Span<ushort> table)
         {
-            for (int i = 0; i < span.Length - 1; i++)
-                for (int j = i + 1; j < span.Length; j++)
-                    if (span[j] < span[i])
+            int n = table.Length;
+            for (int i = 0; i < n - 1; i++)
+            {
+                for (int j = 0; j < n - i - 1; j++)
+                {
+                    if (table[j] > table[j + 1])
                     {
-                        ushort tmp = span[i];
-                        span[i] = span[j];
-                        span[j] = tmp;
+                        ushort t = table[j];
+                        table[j] = table[j + 1];
+                        table[j + 1] = t;
                     }
+                }
+            }
         }
 #endif
 
@@ -96,13 +101,13 @@ namespace ClassicUO.Utility
             Span<int> partialInput = stackalloc int[256 * 3];
             partialInput.Clear();
 
-            for (int i = 0; i < 256; i++)
+            for (var i = 0; i < 256; i++)
                 symbolTable[i] = (char)i;
 
             input.Slice(0, 1024).CopyTo(MemoryMarshal.AsBytes(partialInput));
 
-            int sum = 0;
-            for (int i = 0; i < 256; i++)
+            var sum = 0;
+            for (var i = 0; i < 256; i++)
                 sum += partialInput[i];
 
             if (len == 0)
@@ -113,12 +118,12 @@ namespace ClassicUO.Utility
             if (sum != len)
                 return Array.Empty<byte>();
 
-            byte[] output = new byte[len];
+            var output = new byte[len];
 
-            int count = 0;
-            int nonZeroCount = 0;
+            var count = 0;
+            var nonZeroCount = 0;
 
-            for (int i = 0; i < 256; i++)
+            for (var i = 0; i < 256; i++)
             {
                 if (partialInput[i] != 0)
                     nonZeroCount++;
@@ -128,20 +133,20 @@ namespace ClassicUO.Utility
 
             for (int i = 0, m = 0; i < nonZeroCount; ++i)
             {
-                byte freq = (byte)frequency[i];
+                var freq = (byte)frequency[i];
                 symbolTable[input[m + 1024]] = (char)freq;
                 partialInput[freq + 256] = m + 1;
                 m += partialInput[freq];
                 partialInput[freq + 512] = m;
             }
 
-            byte val = (byte)symbolTable[0];
+            var val = (byte)symbolTable[0];
 
             if (len != 0)
             {
                 do
                 {
-                    ref int firstValRef = ref partialInput[val + 256];
+                    ref var firstValRef = ref partialInput[val + 256];
                     output[count] = val;
 
                     if (firstValRef >= partialInput[val + 512])
@@ -154,7 +159,7 @@ namespace ClassicUO.Utility
                     }
                     else
                     {
-                        char idx = (char)input[firstValRef + 1024];
+                        var idx = (char)input[firstValRef + 1024];
                         firstValRef++;
 
                         if (idx != 0)
@@ -177,12 +182,12 @@ namespace ClassicUO.Utility
             Span<int> tmp = stackalloc int[256];
             input.Slice(0, tmp.Length).CopyTo(tmp);
 
-            for (int i = 0; i < 256; i++)
+            for (var i = 0; i < 256; i++)
             {
                 uint value = 0;
                 byte index = 0;
 
-                for (int j = 0; j < 256; j++)
+                for (var j = 0; j < 256; j++)
                 {
                     if (tmp[j] > value)
                     {
@@ -201,7 +206,7 @@ namespace ClassicUO.Utility
 
         static void ShiftLeft(Span<char> input, int max)
         {
-            for (int i = 0; i < max; ++i)
+            for (var i = 0; i < max; ++i)
                 input[i] = input[i + 1];
         }
     }

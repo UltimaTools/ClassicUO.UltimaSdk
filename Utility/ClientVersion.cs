@@ -62,7 +62,7 @@ namespace ClassicUO.Utility
                 return false;
             }
 
-            byte[] buffer = File.ReadAllBytes(clientpath);
+            var buffer = File.ReadAllBytes(clientpath);
 
             // VS_VERSION_INFO (unicode)
             Span<byte> vsVersionInfo = stackalloc byte[]
@@ -74,16 +74,16 @@ namespace ClassicUO.Utility
                 0x4F, 0x00
             };
 
-            for (int i = 0; i < buffer.Length - vsVersionInfo.Length; i++)
+            for (var i = 0; i < buffer.Length - vsVersionInfo.Length; i++)
             {
                 if (vsVersionInfo.SequenceEqual(buffer.AsSpan(i, vsVersionInfo.Length)))
                 {
-                    int offset = i + 42; // 30 + 12
+                    var offset = i + 42; // 30 + 12
 
-                    ushort minorPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset));
-                    ushort majorPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 2));
-                    ushort privatePart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 4));
-                    ushort buildPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 6));
+                    var minorPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset));
+                    var majorPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 2));
+                    var privatePart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 4));
+                    var buildPart = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(offset + 6));
 
                     version = $"{majorPart}.{minorPart}.{buildPart}.{privatePart}";
 

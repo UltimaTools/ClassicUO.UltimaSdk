@@ -24,7 +24,10 @@ namespace ClassicUO.Utility.Logging
             );
         }
 
-        public void Dispose() => logStream.Close();
+        public void Dispose()
+        {
+            logStream.Close();
+        }
 
 
         public void Write(string message)
@@ -80,6 +83,9 @@ namespace ClassicUO.Utility.Logging
         }
 
 
-        public override string ToString() => logStream.Name;
+        public override string ToString()
+        {
+            return logStream.Name;
+        }
     }
 }

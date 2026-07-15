@@ -3,10 +3,8 @@
 using ClassicUO.IO;
 using ClassicUO.Utility;
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace ClassicUO.Assets
@@ -27,13 +25,13 @@ namespace ClassicUO.Assets
 
         public override unsafe void Load()
         {
-            string path = FileManager.GetUOFilePath("hues.mul");
+            var path = FileManager.GetUOFilePath("hues.mul");
 
             FileSystemHelper.EnsureFileExists(path);
 
             using var file = new UOFileMul(path);
             int groupSize = Unsafe.SizeOf<HuesGroup>();
-            int entrycount = (int)file.Length / groupSize;
+            int entrycount = (int) file.Length / groupSize;
             HuesCount = entrycount * 8;
             HuesRange = new HuesGroup[entrycount];
 
@@ -117,31 +115,38 @@ namespace ClassicUO.Assets
             }
         }
 
-        /* Look up the hue and return the color for the given index. Index must be between 0 and 31.
-         * The returned color is a 16 bit color in R5B5G5A1 format. */
-        public ushort GetHueColorRgba5551(ushort index, ushort hue)
-        {
-            if (hue != 0 && hue < HuesCount)
-            {
-                hue -= 1;
-                int g = hue >> 3;
-                int e = hue % 8;
+        //public float[] GetColorForShader(ushort color)
+        //{
+        //    if (color != 0)
+        //    {
+        //        if (color >= HuesCount)
+        //        {
+        //            color %= (ushort)HuesCount;
 
-                return (ushort)(0x8000 | HuesRange[g].Entries[e].ColorTable[index]);
-            }
+        //            if (color <= 0)
+        //                color = 1;
+        //        }
 
-            return 0x8000;
-        }
+        //        return Palette[color - 1].Palette;
+        //    }
 
-        /* Look up the hue and return the color for the given index. Index must be between 0 and 31.
-         * The returned color is a 32 bit color in R8G8B8A8 format. */
-        public uint GetHueColorRgba8888(ushort index, ushort hue) => HuesHelper.Color16To32(GetHueColorRgba5551(index, hue));
+        //    return _empty;
+        //}
 
-        /* Apply the hue to the given gray color, returning a 16 bit color. */
-        public ushort ApplyHueRgba5551(ushort gray, ushort hue) => GetHueColorRgba5551((ushort)((gray >> 10) & 0x1F), hue);
+        //public static void SetHuesBlock(int index, IntPtr ptr)
+        //{
+        //    VerdataHuesGroup group = Marshal.PtrToStructure<VerdataHuesGroup>(ptr);
+        //    SetHuesBlock(index, group);
+        //}
 
-        /* Apply the hue to the given gray color, returning a 32 bit color. */
-        public uint ApplyHueRgba8888(ushort gray, ushort hue) => HuesHelper.Color16To32(ApplyHueRgba5551(gray, hue));
+        //public static void SetHuesBlock(int index, VerdataHuesGroup group)
+        //{
+        //    if (index < 0 || index >= HuesCount)
+        //        return;
+
+        //    HuesRange[index].Header = group.Header;
+        //    for (int i = 0; i < 8; i++) HuesRange[index].Entries[i].ColorTable = group.Entries[i].ColorTable;
+        //}
 
         public ushort GetColor16(ushort c, ushort color)
         {
@@ -199,26 +204,34 @@ namespace ClassicUO.Assets
             return color != 0 ? HuesHelper.Color16To32(color) : HuesHelper.Color16To32(c);
         }
 
-        public uint GetPartialHueColor(ushort color, ushort hue)
+        public uint GetPartialHueColor(ushort c, ushort color)
         {
-            uint cl = HuesHelper.Color16To32(color);
-            byte R = (byte)(cl & 0xFF);
-            byte G = (byte)((cl >> 8) & 0xFF);
-            byte B = (byte)((cl >> 16) & 0xFF);
-
-            if (R != G || R != B)
+            if (color != 0 && color < HuesCount)
             {
-                /* Not gray. Don't apply hue. */
-                return HuesHelper.Color16To32(color);
+                color -= 1;
+                int g = color >> 3;
+                int e = color % 8;
+                uint cl = HuesHelper.Color16To32(c);
+
+                byte R = (byte) (cl & 0xFF);
+                byte G = (byte) ((cl >> 8) & 0xFF);
+                byte B = (byte) ((cl >> 16) & 0xFF);
+
+                if (R == G && R == B)
+                {
+                    cl = HuesHelper.Color16To32(HuesRange[g].Entries[e].ColorTable[(c >> 10) & 0x1F]);
+                }
+
+                return cl;
             }
 
-            if (hue == 0 || hue >= HuesCount)
-            {
-                /* Invalid hue. */
-                return HuesHelper.Color16To32(color);
-            }
+            return HuesHelper.Color16To32(c);
+        }
 
-            return ApplyHueRgba8888(color, hue);
+        public uint GetHueColorRgba8888(ushort colorIndex, ushort color)
+        {
+            ushort c = GetColor16(colorIndex, color);
+            return HuesHelper.Color16To32(c) | 0xFF000000;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -236,23 +249,26 @@ namespace ClassicUO.Assets
 
 #if NETFRAMEWORK
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 64)]
-    public unsafe struct ColorTableArray
+    public struct ColorTableArray
     {
-        private fixed ushort _data[32];
+        private ushort _a0;
 
-        public ushort this[int index]
+        public unsafe ref ushort this[int index]
         {
-            get { fixed (ushort* p = _data) return p[index]; }
-            set { fixed (ushort* p = _data) p[index] = value; }
+            get
+            {
+                fixed (ColorTableArray* p = &this)
+                    return ref ((ushort*)p)[index];
+            }
         }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 704)]
-    public unsafe struct HuesBlockArray
+    public struct HuesBlockArray
     {
-        private HuesBlock _e0;
+        private HuesBlock _a0;
 
-        public ref HuesBlock this[int index]
+        public unsafe ref HuesBlock this[int index]
         {
             get
             {

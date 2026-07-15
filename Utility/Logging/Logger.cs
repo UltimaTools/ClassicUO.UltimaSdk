@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +16,7 @@ namespace ClassicUO.Utility.Logging
                 LogTypes.Info, Tuple.Create(ConsoleColor.Green, "  Info    ")
             },
             {
-                LogTypes.Debug, Tuple.Create(ConsoleColor.DarkMagenta, "  Debug   ")
+                LogTypes.Debug, Tuple.Create(ConsoleColor.DarkGreen, "  Debug   ")
             },
             {
                 LogTypes.Trace, Tuple.Create(ConsoleColor.Green, "  Trace   ")
@@ -40,9 +40,15 @@ namespace ClassicUO.Utility.Logging
         // No volatile support for properties, let's use a private backing field.
         public LogTypes LogTypes { get; set; }
 
-        public void Start(LogFile logFile = null) => _isLogging = true;
+        public void Start(LogFile logFile = null)
+        {
+            _isLogging = true;
+        }
 
-        public void Stop() => _isLogging = false;
+        public void Stop()
+        {
+            _isLogging = false;
+        }
 
         public void Message(LogTypes logType, string text)
         {
@@ -60,9 +66,15 @@ namespace ClassicUO.Utility.Logging
             }
         }
 
-        public void Clear() => Console.Clear();
+        public void Clear()
+        {
+            Console.Clear();
+        }
 
-        public void PushIndent() => _indent++;
+        public void PushIndent()
+        {
+            _indent++;
+        }
 
         public void PopIndent()
         {

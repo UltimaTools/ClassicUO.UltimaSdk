@@ -5,12 +5,10 @@ using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using ClassicUO.Utility.Platforms;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace ClassicUO.Assets
 {
@@ -18,10 +16,17 @@ namespace ClassicUO.Assets
     {
         private readonly UOFilesOverrideMap _overrideMap;
 
-        public UOFileManager(ClientVersion clientVersion, string uoPath)
+        public UOFileManager(ClientVersion clientVersion, string uoPath) : this(clientVersion, uoPath, new UOFilesOverrideMap())
+        {
+        }
+
+        public UOFileManager(ClientVersion clientVersion, string uoPath, UOFilesOverrideMap overrideMap)
         {
             Version = clientVersion;
             BasePath = uoPath;
+
+            _overrideMap = overrideMap;
+            IsUOPInstallation = Version >= ClientVersion.CV_7000 && File.Exists(GetUOFilePath("MainMisc.uop"));
 
             Arts = new ArtLoader(this);
             Maps = new MapLoader(this);
@@ -33,8 +38,6 @@ namespace ClassicUO.Assets
             Skills = new SkillsLoader(this);
             MultiMaps = new MultiMapLoader(this);
             Verdata = new VerdataLoader(this);
-
-            _overrideMap = new UOFilesOverrideMap();
         }
 
         public ClientVersion Version { get; }
@@ -52,6 +55,11 @@ namespace ClassicUO.Assets
         public MultiMapLoader MultiMaps { get; }
         public VerdataLoader Verdata { get; }
 
+        public void SetFileOverride(string key, string path)
+        {
+            _overrideMap[key.ToLowerInvariant()] = path;
+        }
+
 
 
         public void Dispose()
@@ -68,11 +76,6 @@ namespace ClassicUO.Assets
             Verdata.Dispose();
         }
 
-        public void SetFileOverride(string key, string path)
-        {
-            _overrideMap[key.ToLowerInvariant()] = path;
-        }
-
         public string GetUOFilePath(string file)
         {
             if (!_overrideMap.TryGetValue(file.ToLowerInvariant(), out string uoFilePath))
@@ -80,10 +83,31 @@ namespace ClassicUO.Assets
                 uoFilePath = Path.Combine(BasePath, file);
             }
 
-            //If the file with the given name doesn't exist, check for it with alternative casing
-            if (!File.Exists(uoFilePath))
+            //If the file with the given name doesn't exist, check for it with alternative casing if not on windows
+            if (!PlatformHelper.IsWindows && !File.Exists(uoFilePath))
             {
-                uoFilePath = FileSystemHelper.GetCaseInsensitiveFilePath(uoFilePath);
+                FileInfo finfo = new FileInfo(uoFilePath);
+                var dir = Path.GetFullPath(finfo.DirectoryName ?? BasePath);
+
+                if (Directory.Exists(dir))
+                {
+                    var files = Directory.GetFiles(dir);
+                    var matches = 0;
+
+                    foreach (var f in files)
+                    {
+                        if (string.Equals(f, uoFilePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            matches++;
+                            uoFilePath = f;
+                        }
+                    }
+
+                    if (matches > 1)
+                    {
+                        Log.Warn($"Multiple files with ambiguous case found for {file}, using {Path.GetFileName(uoFilePath)}. Check your data directory for duplicate files.");
+                    }
+                }
             }
 
             return uoFilePath;
@@ -91,11 +115,7 @@ namespace ClassicUO.Assets
 
         public void Load(bool useVerdata, string lang, string mapsLayouts = "")
         {
-            var stopwatch = Stopwatch.StartNew();
-
-            _overrideMap.Load(); // need to load this first so that it manages can perform the file overrides if needed
-
-            IsUOPInstallation = Version >= ClientVersion.CV_7000 && File.Exists(GetUOFilePath("MainMisc.uop"));
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             Maps.MapsLayouts = mapsLayouts;
 
@@ -108,13 +128,17 @@ namespace ClassicUO.Assets
             Multis.Load();
             Skills.Load();
             MultiMaps.Load();
+            Verdata.Load();
 
             ReadArtDefFile();
 
-            UOFileMul verdata = Verdata.File;
+            var verdata = Verdata.File;
             bool forceVerdata = Version < ClientVersion.CV_500A || verdata != null && verdata.Length != 0 && Verdata.Patches.Length != 0;
 
-            if (!useVerdata && forceVerdata) useVerdata = true;
+            if (!useVerdata && forceVerdata)
+            {
+                useVerdata = true;
+            }
 
             Log.Trace($"Use verdata.mul: {(useVerdata ? "Yes" : "No")}");
 
@@ -124,12 +148,12 @@ namespace ClassicUO.Assets
                 {
                     Log.Info(">> PATCHING WITH VERDATA.MUL");
 
-                    byte[] buf = new byte[256];
+                    var buf = new byte[256];
                     Span<VerdataHuesGroup> group = stackalloc VerdataHuesGroup[1];
 
                     for (int i = 0; i < Verdata.Patches.Length; i++)
                     {
-                        ref UOFileIndex5D vh = ref Verdata.Patches[i];
+                        ref var vh = ref Verdata.Patches[i];
                         Log.Info($">>> patching  FileID: {vh.FileID}  -  BlockID: {vh.BlockID}");
 
                         if (vh.FileID == 0)
@@ -178,7 +202,7 @@ namespace ClassicUO.Assets
                         }
                         else if (vh.FileID == 16 && vh.BlockID < Skills.SkillsCount)
                         {
-                            SkillEntry skill = Skills.Skills[(int)vh.BlockID];
+                            var skill = Skills.Skills[(int)vh.BlockID];
 
                             if (skill != null)
                             {
@@ -186,7 +210,11 @@ namespace ClassicUO.Assets
                                 if (buf.Length < vh.Length)
                                     buf = new byte[vh.Length];
 
+#if NETFRAMEWORK
                                 skill.Name = Encoding.ASCII.GetString(buf, 0, (int)(vh.Length - 1));
+#else
+                                skill.Name = Encoding.ASCII.GetString(buf.AsSpan(0, (int)(vh.Length - 1)));
+#endif
                             }
                         }
                         else if (vh.FileID == 30)
@@ -217,8 +245,12 @@ namespace ClassicUO.Assets
                                         flags = verdata.ReadUInt64();
                                     }
 
-                                    ushort textId = verdata.ReadUInt16();
-                                    string str = Encoding.ASCII.GetString(buf, 0, 20);
+                                    var textId = verdata.ReadUInt16();
+#if NETFRAMEWORK
+                                    var str = Encoding.ASCII.GetString(buf, 0, 20);
+#else
+                                    var str = Encoding.ASCII.GetString(buf.AsSpan(0, 20));
+#endif
                                     TileData.LandData[offset + j] = new LandTiles(flags, textId, str);
                                 }
                             }
@@ -246,14 +278,18 @@ namespace ClassicUO.Assets
                                         flags = verdata.ReadUInt64();
                                     }
 
-                                    byte weight = verdata.ReadUInt8();
-                                    byte layer = verdata.ReadUInt8();
-                                    int count = verdata.ReadInt32();
-                                    ushort animId = verdata.ReadUInt16();
-                                    ushort hue = verdata.ReadUInt16();
-                                    ushort lightIdx = verdata.ReadUInt16();
-                                    byte height = verdata.ReadUInt8();
-                                    string str = Encoding.ASCII.GetString(buf, 0, 20);
+                                    var weight = verdata.ReadUInt8();
+                                    var layer = verdata.ReadUInt8();
+                                    var count = verdata.ReadInt32();
+                                    var animId = verdata.ReadUInt16();
+                                    var hue = verdata.ReadUInt16();
+                                    var lightIdx = verdata.ReadUInt16();
+                                    var height = verdata.ReadUInt8();
+#if NETFRAMEWORK
+                                    var str = Encoding.ASCII.GetString(buf, 0, 20);
+#else
+                                    var str = Encoding.ASCII.GetString(buf.AsSpan(0, 20));
+#endif
 
                                     TileData.StaticData[offset + j] = new StaticTiles
                                     (
@@ -296,8 +332,8 @@ namespace ClassicUO.Assets
                 }
             }
 
-            stopwatch.Stop();
             Log.Trace($"Files loaded in: {stopwatch.ElapsedMilliseconds} ms!");
+            stopwatch.Stop();
         }
 
         private void ReadArtDefFile()

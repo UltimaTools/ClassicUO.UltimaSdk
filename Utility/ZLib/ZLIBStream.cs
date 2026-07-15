@@ -204,9 +204,15 @@ namespace ZLibNative
             }
         }
 
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotImplementedException();
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotImplementedException();
+        }
 
-        public override void SetLength(long value) => throw new NotImplementedException();
+        public override void SetLength(long value)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         ///     Check if the stream is in ZLib format
@@ -300,7 +306,7 @@ namespace ZLibNative
             byte[] bytesHeader;
 
             //set header settings
-            var header = new ZLibHeader
+            ZLibHeader header = new ZLibHeader
             {
                 CompressionMethod = 8, //Deflate
                 CompressionInfo = 7,

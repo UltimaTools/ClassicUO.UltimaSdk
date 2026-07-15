@@ -3,6 +3,8 @@
 using ClassicUO.IO;
 using ClassicUO.Utility;
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -22,106 +24,67 @@ namespace ClassicUO.Assets
 
         public override void Load()
         {
-            string path = FileManager.GetUOFilePath("tiledata.mul");
-
+            var path = FileManager.GetUOFilePath("tiledata.mul");
             FileSystemHelper.EnsureFileExists(path);
 
-            var tileData = new UOFileMul(path);
-
-            bool isold = FileManager.Version < ClientVersion.CV_7090;
-            const int LAND_SIZE = 512;
-
-            int land_group = isold ? Marshal.SizeOf<LandGroupOld>() : Marshal.SizeOf<LandGroupNew>();
-            int static_group = isold ? Marshal.SizeOf<StaticGroupOld>() : Marshal.SizeOf<StaticGroupNew>();
-            int staticscount = (int) ((tileData.Length - LAND_SIZE * land_group) / static_group);
-
-            // if (staticscount > 2048)
-            // {
-            //     staticscount = 2048;
-            // }
-
+            using var tileData = new UOFileMul(path);
             tileData.Seek(0, System.IO.SeekOrigin.Begin);
 
-            _landData = new LandTiles[ArtLoader.MAX_LAND_DATA_INDEX_COUNT];
-            _staticData = new StaticTiles[staticscount * 32];
+            var landTiles = new List<LandTiles>();
+            var staticTiles = new List<StaticTiles>();
+            var isOld = FileManager.Version < ClientVersion.CV_7090;
 
             Span<byte> buf = stackalloc byte[20];
 
-            for (int i = 0; i < 512; i++)
+            for (var i = 0; i < 512; ++i)
             {
-                tileData.ReadUInt32();
+                var header = tileData.ReadUInt32();
 
-                for (int j = 0; j < 32; j++)
+                for (var j = 0; j < 32; ++j)
                 {
-                    if (tileData.Position + (isold ? 4 : 8) + 2 + 20 > tileData.Length)
-                    {
-                        goto END;
-                    }
-
-                    int idx = i * 32 + j;
-                    ulong flags = isold ? tileData.ReadUInt32() : tileData.ReadUInt64();
-                    ushort textId = tileData.ReadUInt16();
-
+                    var flags = isOld ? tileData.ReadUInt32() : tileData.ReadUInt64();
+                    var id = tileData.ReadUInt16();
                     tileData.Read(buf);
 #if NETFRAMEWORK
-                    string name = string.Intern(Encoding.UTF8.GetString(buf.ToArray()).TrimEnd('\0'));
+                    var name = Encoding.UTF8.GetString(buf.ToArray()).Trim('\0');
 #else
-                    string name = string.Intern(Encoding.UTF8.GetString(buf).TrimEnd('\0'));
+                    var name = Encoding.UTF8.GetString(buf).Trim('\0');
 #endif
-                    LandData[idx] = new LandTiles(flags, textId, name);
+
+                    landTiles.Add(new LandTiles(flags, id, name));
                 }
             }
 
-            END:
+            var tsize = isOld ? Unsafe.SizeOf<StaticGroupOld>() : Unsafe.SizeOf<StaticGroupNew>();
+            var staticCount = (uint)((tileData.Length - tileData.Position) / tsize);
 
-            for (int i = 0; i < staticscount; i++)
+            for (var i = 0; i < staticCount; ++i)
             {
-                if (tileData.Position >= tileData.Length)
+                var header = tileData.ReadUInt32();
+
+                for (var j = 0; j < 32; j++)
                 {
-                    break;
-                }
-
-                tileData.ReadUInt32();
-
-                for (int j = 0; j < 32; j++)
-                {
-                    if (tileData.Position + (isold ? 4 : 8) + 13 + 20 > tileData.Length)
-                    {
-                        goto END_2;
-                    }
-
-                    int idx = i * 32 + j;
-
-                    ulong flags = isold ? tileData.ReadUInt32() : tileData.ReadUInt64();
-                    byte weight = tileData.ReadUInt8();
-                    byte layer = tileData.ReadUInt8();
-                    int count = tileData.ReadInt32();
-                    ushort animId = tileData.ReadUInt16();
-                    ushort hue = tileData.ReadUInt16();
-                    ushort lightIndex = tileData.ReadUInt16();
-                    byte height = tileData.ReadUInt8();
-
+                    var flags = isOld ? tileData.ReadUInt32() : tileData.ReadUInt64();
+                    var weight = tileData.ReadUInt8();
+                    var layer = tileData.ReadUInt8();
+                    var count = tileData.ReadInt32();
+                    var animId = tileData.ReadUInt16();
+                    var hue = tileData.ReadUInt16();
+                    var lightIndex = tileData.ReadUInt16();
+                    var height = tileData.ReadUInt8();
                     tileData.Read(buf);
 #if NETFRAMEWORK
-                    string name = string.Intern(Encoding.UTF8.GetString(buf.ToArray()).TrimEnd('\0'));
+                    var name = Encoding.UTF8.GetString(buf.ToArray()).Trim('\0');
 #else
-                    string name = string.Intern(Encoding.UTF8.GetString(buf).TrimEnd('\0'));
+                    var name = Encoding.UTF8.GetString(buf).Trim('\0');
 #endif
 
-                    StaticData[idx] = new StaticTiles
-                    (
-                        flags,
-                        weight,
-                        layer,
-                        count,
-                        animId,
-                        hue,
-                        lightIndex,
-                        height,
-                        name
-                    );
+                    staticTiles.Add(new StaticTiles(flags, weight, layer, count, animId, hue, lightIndex, height, name));
                 }
             }
+
+            _landData = [.. landTiles];
+            _staticData = [.. staticTiles];
 
 
             //path = Path.Combine(FileManager.UoFolderPath, "tileart.uop");
@@ -252,11 +215,6 @@ namespace ClassicUO.Assets
             //    uop.Dispose();
             //    reader.ReleaseData();
             //}
-
-
-
-            END_2:
-            tileData.Dispose();
         }
     }
 
@@ -264,7 +222,7 @@ namespace ClassicUO.Assets
     {
         public LandTiles(ulong flags, ushort textId, string name)
         {
-            Flags = (TileFlag) flags;
+            Flags = (TileFlag)flags;
             TexID = textId;
             Name = name;
         }
@@ -278,13 +236,6 @@ namespace ClassicUO.Assets
         public bool IsNoDiagonal => (Flags & TileFlag.NoDiagonal) != 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct LandGroup
-    {
-        public uint Unknown;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public LandTiles[] Tiles;
-    }
 
     public struct StaticTiles
     {
@@ -301,7 +252,7 @@ namespace ClassicUO.Assets
             string name
         )
         {
-            Flags = (TileFlag) flags;
+            Flags = (TileFlag)flags;
             Weight = weight;
             Layer = layer;
             Count = count;
@@ -346,13 +297,8 @@ namespace ClassicUO.Assets
         public bool IsMultiMovable => (Flags & TileFlag.MultiMovable) != 0;
         public bool IsWindow => (Flags & TileFlag.Window) != 0;
 
-        public void SetImpassable(bool value)
-        {
-            if (value)
-                Flags |= TileFlag.Impassable;
-            else
-                Flags &= ~TileFlag.Impassable;
-        }
+
+        public static readonly StaticTiles Invalid = new StaticTiles();
     }
 
     // old
@@ -361,8 +307,7 @@ namespace ClassicUO.Assets
     public struct LandGroupOld
     {
         public uint Unknown;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public LandTilesOld[] Tiles;
+        public LandTilesOldArray32 Tiles;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -370,16 +315,14 @@ namespace ClassicUO.Assets
     {
         public uint Flags;
         public ushort TexID;
-        [MarshalAs(UnmanagedType.LPStr, SizeConst = 20)]
-        public string Name;
+        public BufferArray20 Name;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct StaticGroupOld
     {
         public uint Unk;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public StaticTilesOld[] Tiles;
+        public StaticTilesOldArray32 Tiles;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -393,8 +336,7 @@ namespace ClassicUO.Assets
         public ushort Hue;
         public ushort LightIndex;
         public byte Height;
-        [MarshalAs(UnmanagedType.LPStr, SizeConst = 20)]
-        public string Name;
+        public BufferArray20 Name;
     }
 
     // new
@@ -403,8 +345,7 @@ namespace ClassicUO.Assets
     public struct LandGroupNew
     {
         public uint Unknown;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public LandTilesNew[] Tiles;
+        public LandTilesNewArray32 Tiles;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -412,16 +353,14 @@ namespace ClassicUO.Assets
     {
         public TileFlag Flags;
         public ushort TexID;
-        [MarshalAs(UnmanagedType.LPStr, SizeConst = 20)]
-        public string Name;
+        public BufferArray20 Name;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct StaticGroupNew
     {
         public uint Unk;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public StaticTilesNew[] Tiles;
+        public StaticTilesNewArray32 Tiles;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -435,9 +374,71 @@ namespace ClassicUO.Assets
         public ushort Hue;
         public ushort LightIndex;
         public byte Height;
-        [MarshalAs(UnmanagedType.LPStr, SizeConst = 20)]
-        public string Name;
+        public BufferArray20 Name;
     }
+
+
+#if NETFRAMEWORK
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 832)]
+    public struct LandTilesOldArray32
+    {
+        private LandTilesOld _a;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 960)]
+    public struct LandTilesNewArray32
+    {
+        private LandTilesNew _a;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1184)]
+    public struct StaticTilesOldArray32
+    {
+        private StaticTilesOld _a;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1312)]
+    public struct StaticTilesNewArray32
+    {
+        private StaticTilesNew _a;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 20)]
+    public struct BufferArray20
+    {
+        private byte _a;
+    }
+#else
+    [InlineArray(32)]
+    public struct LandTilesOldArray32
+    {
+        private LandTilesOld _a;
+    }
+
+    [InlineArray(32)]
+    public struct LandTilesNewArray32
+    {
+        private LandTilesNew _a;
+    }
+
+    [InlineArray(32)]
+    public struct StaticTilesOldArray32
+    {
+        private StaticTilesOld _a;
+    }
+
+    [InlineArray(32)]
+    public struct StaticTilesNewArray32
+    {
+        private StaticTilesNew _a;
+    }
+
+    [InlineArray(20)]
+    public struct BufferArray20
+    {
+        private byte _a;
+    }
+#endif
 
     [Flags]
     public enum TileFlag : ulong

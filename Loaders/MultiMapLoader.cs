@@ -21,7 +21,10 @@ namespace ClassicUO.Assets
         {
         }
 
-        public bool HasFacet(int map) => map >= 0 && map < _facets.Length && _facets[map] != null;
+        public bool HasFacet(int map)
+        {
+            return map >= 0 && map < _facets.Length && _facets[map] != null;
+        }
 
         public override void Load()
         {
@@ -158,7 +161,7 @@ namespace ClassicUO.Assets
             ushort* huesData = (ushort*)(byte*)(ptr + 30800);
 
             Span<uint> colorTable = stackalloc uint[byte.MaxValue];
-            uint[] pixels = new uint[mapSize];
+            var pixels = new uint[mapSize];
 
             try
             {
@@ -205,7 +208,7 @@ namespace ClassicUO.Assets
                 return default;
             }
 
-            UOFileMul file = _facets[facet];
+            var file = _facets[facet];
             file.Seek(0, SeekOrigin.Begin);
 
             int w = file.ReadUInt16();
@@ -225,7 +228,7 @@ namespace ClassicUO.Assets
             int pwidth = endX - startX;
             int pheight = endY - startY;
 
-            uint[] pixels = new uint[pwidth * pheight];
+            var pixels = new uint[pwidth * pheight];
 
             for (int y = 0; y < h; y++)
             {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Runtime.CompilerServices;
 
 namespace ClassicUO.IO
 {
@@ -10,7 +9,6 @@ namespace ClassicUO.IO
         private readonly MemoryMappedViewAccessor _accessor;
         private readonly MemoryMappedFile _mmf;
         private readonly BinaryReader _file;
-        private unsafe byte* _ptr;
 
         public MMFileReader(FileStream stream) : base(stream)
         {
@@ -33,8 +31,9 @@ namespace ClassicUO.IO
             {
                 unsafe
                 {
-                    _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref _ptr);
-                    _file = new BinaryReader(new UnmanagedMemoryStream(_ptr, Length));
+                    byte* ptr = null;
+                    _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+                    _file = new BinaryReader(new UnmanagedMemoryStream(ptr, Length));
                 }
             }
             catch (Exception ex)
@@ -46,12 +45,6 @@ namespace ClassicUO.IO
         }
 
         public override BinaryReader Reader => _file;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe T ReadAt<T>(long offset) => Unsafe.ReadUnaligned<T>(_ptr + offset);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe void ReadAt(long offset, Span<byte> buffer) => new ReadOnlySpan<byte>(_ptr + offset, buffer.Length).CopyTo(buffer);
 
         public override void Dispose()
         {

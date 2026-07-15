@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using ZLibNative;
 
 namespace ClassicUO.Utility
 {
@@ -18,26 +19,13 @@ namespace ClassicUO.Utility
             int length
         )
         {
-            using (var stream = new MemoryStream(source, sourceStart, sourceLength - offset, true))
+            using (MemoryStream stream = new MemoryStream(source, sourceStart, sourceLength - offset, true))
             {
-#if NETFRAMEWORK
-                // net472: skip zlib header (2 bytes) and use DeflateStream
-                stream.ReadByte();
-                stream.ReadByte();
-                using (var ds = new DeflateStream(stream, CompressionMode.Decompress))
-#else
-                using (var ds = new ZLibStream(stream, CompressionMode.Decompress))
-#endif
+                using (ZLIBStream ds = new ZLIBStream(stream, CompressionMode.Decompress))
                 {
-                    int totalRead = 0;
-
-                    while (totalRead < length)
+                    for (int i = 0, b = ds.ReadByte(); i < length && b >= 0; i++, b = ds.ReadByte())
                     {
-                        int toRead = Math.Min(4096, length - totalRead);
-                        int bytesRead = ds.Read(dest, totalRead, toRead);
-                        if (bytesRead <= 0)
-                            break;
-                        totalRead += bytesRead;
+                        dest[i] = (byte) b;
                     }
                 }
             }
@@ -45,39 +33,31 @@ namespace ClassicUO.Utility
 
         public static unsafe void Decompress(IntPtr source, int sourceLength, int offset, IntPtr dest, int length)
         {
-            byte[] tempDest = new byte[length];
-            byte[] tempSource = new byte[sourceLength - offset];
-
-            fixed (byte* tempSourcePtr = tempSource)
+            using (UnmanagedMemoryStream stream = new UnmanagedMemoryStream((byte*) source.ToPointer(), sourceLength - offset))
             {
-                Buffer.MemoryCopy((byte*)source.ToPointer(), tempSourcePtr, tempSource.Length, tempSource.Length);
-            }
+                using (ZLIBStream ds = new ZLIBStream(stream, CompressionMode.Decompress))
+                {
+                    byte* dstPtr = (byte*) dest.ToPointer();
 
-            Decompress(tempSource, 0, sourceLength, offset, tempDest, length);
-
-            fixed (byte* tempDestPtr = tempDest)
-            {
-                Buffer.MemoryCopy(tempDestPtr, (byte*)dest.ToPointer(), length, length);
+                    for (int i = 0, b = ds.ReadByte(); i < length && b >= 0; i++, b = ds.ReadByte())
+                    {
+                        dstPtr[i] = (byte) b;
+                    }
+                }
             }
         }
 
         public static void Compress(byte[] dest, ref int destLength, byte[] source)
         {
-            using (var stream = new MemoryStream(dest, true))
+            using (MemoryStream stream = new MemoryStream(dest, true))
             {
-#if NETFRAMEWORK
-                stream.WriteByte(0x78);
-                stream.WriteByte(0x9C);
-                using (var ds = new DeflateStream(stream, CompressionMode.Compress, true))
-#else
-                using (var ds = new ZLibStream(stream, CompressionMode.Compress, true))
-#endif
+                using (ZLIBStream ds = new ZLIBStream(stream, CompressionMode.Compress, true))
                 {
                     ds.Write(source, 0, source.Length);
                     ds.Flush();
                 }
 
-                destLength = (int)stream.Position;
+                destLength = (int) stream.Position;
             }
         }
     }

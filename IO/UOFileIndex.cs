@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Runtime.InteropServices;
@@ -52,7 +52,10 @@ namespace ClassicUO.IO
             0
         );
 
-        public bool Equals(UOFileIndex other) => (File, Offset, Length, DecompressedLength) == (other.File, other.Offset, other.Length, other.DecompressedLength);
+        public bool Equals(UOFileIndex other)
+        {
+            return (File, Offset, Length, DecompressedLength) == (other.File, other.Offset, other.Length, other.DecompressedLength);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

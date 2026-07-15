@@ -22,7 +22,10 @@ namespace ZLibNative
             pend++;
         }
 
-        public void Update(byte[] data) => Update(data, 0, data.Length);
+        public void Update(byte[] data)
+        {
+            Update(data, 0, data.Length);
+        }
 
         public void Update(byte[] data, int offset, int length)
         {

@@ -49,10 +49,16 @@ namespace ClassicUO.IO
         }
 
         [MethodImpl(IMPL_OPTION)]
-        public void Seek(long p) => Position = (int)p;
+        public void Seek(long p)
+        {
+            Position = (int)p;
+        }
 
         [MethodImpl(IMPL_OPTION)]
-        public void Skip(int count) => Position += count;
+        public void Skip(int count)
+        {
+            Position += count;
+        }
 
         public byte[] ReadArray(int count)
         {
@@ -61,7 +67,7 @@ namespace ClassicUO.IO
                 return Array.Empty<byte>();
             }
 
-            byte[] buf = Buffer.Slice(Position, count).ToArray();
+            var buf = Buffer.Slice(Position, count).ToArray();
             Position += count;
 
             return buf;
@@ -199,7 +205,7 @@ namespace ClassicUO.IO
 #if NETFRAMEWORK
             T v = default;
 #else
-            Unsafe.SkipInit<T>(out T v);
+            Unsafe.SkipInit(out T v);
 #endif
             var p = new Span<byte>(&v, sizeof(T));
             Read(p);
@@ -343,7 +349,7 @@ namespace ClassicUO.IO
                     Span<char> buff = stackalloc char[256];
                     ReadOnlySpan<char> chars = result.AsSpan();
 
-                    var sb = new ValueStringBuilder(buff);
+                    ValueStringBuilder sb = new ValueStringBuilder(buff);
 
                     bool hasDoneAnyReplacements = false;
                     int last = 0;
@@ -377,21 +383,48 @@ namespace ClassicUO.IO
             return result;
         }
 
-        public string ReadASCII(bool safe = false) => ReadRawString(-1, 1, safe);//return ReadString(StringHelper.Cp1252Encoding, -1, 1, safe);
+        public string ReadASCII(bool safe = false)
+        {
+            return ReadRawString(-1, 1, safe);
+            //return ReadString(StringHelper.Cp1252Encoding, -1, 1, safe);
+        }
 
-        public string ReadASCII(int length, bool safe = false) => ReadRawString(length, 1, safe);//return ReadString(StringHelper.Cp1252Encoding, length, 1, safe);
+        public string ReadASCII(int length, bool safe = false)
+        {
+            return ReadRawString(length, 1, safe);
 
-        public string ReadUnicodeBE(bool safe = false) => ReadString(Encoding.BigEndianUnicode, -1, 2, safe);
+            //return ReadString(StringHelper.Cp1252Encoding, length, 1, safe);
+        }
 
-        public string ReadUnicodeBE(int length, bool safe = false) => ReadString(Encoding.BigEndianUnicode, length, 2, safe);
+        public string ReadUnicodeBE(bool safe = false)
+        {
+            return ReadString(Encoding.BigEndianUnicode, -1, 2, safe);
+        }
 
-        public string ReadUnicodeLE(bool safe = false) => ReadString(Encoding.Unicode, -1, 2, safe);
+        public string ReadUnicodeBE(int length, bool safe = false)
+        {
+            return ReadString(Encoding.BigEndianUnicode, length, 2, safe);
+        }
 
-        public string ReadUnicodeLE(int length, bool safe = false) => ReadString(Encoding.Unicode, length, 2, safe);
+        public string ReadUnicodeLE(bool safe = false)
+        {
+            return ReadString(Encoding.Unicode, -1, 2, safe);
+        }
 
-        public string ReadUTF8(bool safe = false) => ReadString(Encoding.UTF8, -1, 1, safe);
+        public string ReadUnicodeLE(int length, bool safe = false)
+        {
+            return ReadString(Encoding.Unicode, length, 2, safe);
+        }
 
-        public string ReadUTF8(int length, bool safe = false) => ReadString(Encoding.UTF8, length, 1, safe);
+        public string ReadUTF8(bool safe = false)
+        {
+            return ReadString(Encoding.UTF8, -1, 1, safe);
+        }
+
+        public string ReadUTF8(int length, bool safe = false)
+        {
+            return ReadString(Encoding.UTF8, length, 1, safe);
+        }
 
         // from modernuo <3
         private string ReadString(Encoding encoding, int length, int sizeT, bool safe)
@@ -436,7 +469,7 @@ namespace ClassicUO.IO
                 Span<char> buff = stackalloc char[256];
                 ReadOnlySpan<char> chars = result.AsSpan();
 
-                var sb = new ValueStringBuilder(buff);
+                ValueStringBuilder sb = new ValueStringBuilder(buff);
 
                 bool hasDoneAnyReplacements = false;
                 int last = 0;

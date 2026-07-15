@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -35,11 +35,15 @@ namespace ClassicUO.IO
 
         public override void Dispose()
         {
-             ClearHashes();
+            ClearHashes();
             base.Dispose();
         }
 
-        public bool TryGetUOPData(ulong hash, out UOFileIndex data) => _hashes.TryGetValue(hash, out data);
+
+        public bool TryGetUOPData(ulong hash, out UOFileIndex data)
+        {
+            return _hashes.TryGetValue(hash, out data);
+        }
 
         public override void FillEntries()
         {
@@ -50,11 +54,11 @@ namespace ClassicUO.IO
                 throw new ArgumentException("Bad uop file");
             }
 
-            uint version = ReadUInt32();
-            uint format_timestamp = ReadUInt32();
-            long nextBlock = ReadInt64();
-            uint block_size = ReadUInt32();
-            int count = ReadInt32();
+            var version = ReadUInt32();
+            var format_timestamp = ReadUInt32();
+            var nextBlock = ReadInt64();
+            var block_size = ReadUInt32();
+            var count = ReadInt32();
 
 
             Seek(nextBlock, System.IO.SeekOrigin.Begin);
@@ -63,7 +67,7 @@ namespace ClassicUO.IO
 
             do
             {
-                int filesCount = ReadInt32();
+                var filesCount = ReadInt32();
                 nextBlock = ReadInt64();
                 total += filesCount;
 
@@ -73,7 +77,7 @@ namespace ClassicUO.IO
                     int headerLength = ReadInt32();
                     int compressedLength = ReadInt32();
                     int decompressedLength = ReadInt32();
-                    ulong hash = ReadUInt64();
+                    var hash = ReadUInt64();
                     uint data_hash = ReadUInt32();
                     short flag = ReadInt16();
                     int length = flag == 1 ? compressedLength : decompressedLength;
@@ -89,11 +93,11 @@ namespace ClassicUO.IO
 
                     if (_hasExtra && flag != 3)
                     {
-                        long pos = Position;
+                        var pos = Position;
                         Seek(offset, System.IO.SeekOrigin.Begin);
 
-                        int extra1 = ReadInt32();
-                        int extra2 = ReadInt32();
+                        var extra1 = ReadInt32();
+                        var extra2 = ReadInt32();
 
                         _hashes.Add
                         (
@@ -141,7 +145,7 @@ namespace ClassicUO.IO
                 string file = string.Format(_pattern, i);
                 ulong hash = CreateHash(file);
 
-                if (_hashes.TryGetValue(hash, out UOFileIndex e))
+                if (_hashes.TryGetValue(hash, out var e))
                 {
                     Entries[i] = e;
                 }

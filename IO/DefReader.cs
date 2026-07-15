@@ -159,7 +159,10 @@ namespace ClassicUO.IO
             return p[index];
         }
 
-        public int ReadInt() => ReadInt(Line, Position++);
+        public int ReadInt()
+        {
+            return ReadInt(Line, Position++);
+        }
 
         public int ReadGroupInt(int index = 0)
         {
@@ -188,7 +191,7 @@ namespace ClassicUO.IO
                 {
                     if (s[s.Length - 1] == '}')
                     {
-                        var results = new List<int>();
+                        List<int> results = new List<int>();
 
                         string[] splitRes = s.Split(_tokensGroup, StringSplitOptions.RemoveEmptyEntries);
 
@@ -250,7 +253,7 @@ namespace ClassicUO.IO
             {
                 if (token.StartsWith("0x"))
                 {
-                    if (int.TryParse(token.Remove(0, 2), NumberStyles.HexNumber, null, out int res))
+                    if (int.TryParse(token.Remove(0, 2), NumberStyles.HexNumber, null, out var res))
                     {
                         return res;
                     }
@@ -259,7 +262,7 @@ namespace ClassicUO.IO
                         Log.Error($"error while parsing {_file} - Line: {line}, index: {index}");
                     }
                 }
-                else if (int.TryParse(token, out int res))
+                else if (int.TryParse(token, out var res))
                 {
                     return res;
                 }
