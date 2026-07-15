@@ -11,11 +11,37 @@ namespace Ultima
     {
         private readonly int _index;
         private readonly CUOAssets.HuesLoader _loader;
+        private ushort[] _colors;
 
         internal Hue(int index, CUOAssets.HuesLoader loader)
         {
             _index = index;
             _loader = loader;
+        }
+
+        public ushort[] Colors
+        {
+            get
+            {
+                if (_colors == null && _loader != null)
+                {
+                    _colors = new ushort[32];
+                    var groups = _loader.HuesRange;
+                    if (groups != null)
+                    {
+                        int groupIdx = _index / 8;
+                        int entryIdx = _index % 8;
+                        if (groupIdx < groups.Length)
+                        {
+                            var entries = groups[groupIdx].Entries;
+                            var block = entries[entryIdx];
+                            for (int i = 0; i < 32; i++)
+                                _colors[i] = block.ColorTable[i];
+                        }
+                    }
+                }
+                return _colors ?? new ushort[32];
+            }
         }
 
         public SDColor GetColor(int colorIndex)
@@ -95,9 +121,32 @@ namespace Ultima
 
     public static class Hues
     {
+        private static Hue[] _list;
+
+        public static Hue[] List
+        {
+            get
+            {
+                if (_list == null)
+                {
+                    var loader = Files.Manager?.Hues;
+                    if (loader != null)
+                    {
+                        _list = new Hue[3000];
+                        for (int i = 0; i < 3000; i++)
+                            _list[i] = new Hue(i, loader);
+                    }
+                }
+                return _list;
+            }
+        }
+
         public static Hue GetHue(int index)
         {
-            return new Hue(index, Files.Manager.Hues);
+            if (List != null && index >= 0 && index < List.Length)
+                return List[index];
+
+            return new Hue(index, Files.Manager?.Hues);
         }
     }
 }

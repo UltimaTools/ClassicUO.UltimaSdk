@@ -102,6 +102,44 @@ namespace Ultima
             return bmp;
         }
 
+        public static ushort GetLegalItemId(ushort id)
+        {
+            if (id < 0x4000)
+                return id;
+
+            return id;
+        }
+
+        public static int GetMaxItemId()
+        {
+            var artLoader = Files.Manager?.Arts;
+            if (artLoader?.File != null)
+                return artLoader.File.Entries.Length - 0x4000;
+
+            return 0x3FFF;
+        }
+
+        public static bool IsValidLand(ushort id)
+        {
+            return id < 0x4000;
+        }
+
+        public static bool IsValidStatic(ushort id)
+        {
+            if (id < 0x4000)
+                return false;
+
+            int staticIdx = id - 0x4000;
+            var artLoader = Files.Manager?.Arts;
+            if (artLoader?.File != null && staticIdx < artLoader.File.Entries.Length)
+            {
+                ref var entry = ref artLoader.File.GetValidRefEntry(id);
+                return !entry.Equals(ClassicUO.IO.UOFileIndex.Invalid);
+            }
+
+            return false;
+        }
+
         private static Bitmap DecodeStaticArt(byte[] data)
         {
             if (data.Length < 4) return null;

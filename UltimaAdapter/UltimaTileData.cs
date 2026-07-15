@@ -46,6 +46,7 @@ namespace Ultima
 
         public bool Bridge => (_flags & TileFlag.Bridge) != 0;
         public bool Surface => (_flags & TileFlag.Surface) != 0;
+        public bool Background => (_flags & TileFlag.Background) != 0;
 
         public int CalcHeight => (_flags & TileFlag.Surface) != 0
             ? ((_flags & TileFlag.Bridge) != 0 ? _height / 2 : _height)
@@ -104,6 +105,8 @@ namespace Ultima
             }
         }
 
+        public static int[] HeightTable { get; private set; }
+
         internal static void EnsureInit()
         {
             if (_initialized) return;
@@ -121,6 +124,10 @@ namespace Ultima
             _itemTable = new ItemData[staticSrc.Length];
             for (int i = 0; i < staticSrc.Length; i++)
                 _itemTable[i] = new ItemData(staticSrc[i]);
+
+            HeightTable = new int[_itemTable.Length];
+            for (int i = 0; i < _itemTable.Length; i++)
+                HeightTable[i] = _itemTable[i].Height;
         }
 
         public static ItemData GetItemData(int id)
