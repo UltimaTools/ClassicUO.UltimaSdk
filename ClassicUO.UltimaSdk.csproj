@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net10.0</TargetFrameworks>
+    <AssemblyName>ClassicUO.UltimaSdk</AssemblyName>
+    <RootNamespace>ClassicUO</RootNamespace>
+    <LangVersion>preview</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <Description>Ultima Online data file reader library extracted from the ClassicUO project, with a legacy UltimaSDK-compatible adapter layer.</Description>
+    <RepositoryUrl>https://github.com/UltimaTools/ClassicUO.UltimaSdk</RepositoryUrl>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="System.Memory" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="System.Drawing.Common" />
+  </ItemGroup>
+
+</Project>
