@@ -8,6 +8,18 @@ namespace Ultima
 {
     public static class Files
     {
+        public delegate void FileSaveHandler();
+        public static event FileSaveHandler FileSaveEvent;
+
+        internal static void FireFileSaveEvent()
+        {
+            FileSaveEvent?.Invoke();
+        }
+
+        public static bool IsManagedFromRoot(string key)
+        {
+            return true;
+        }
         private static CUOAssets.UOFileManager _manager;
         private static string _uoDirectory;
         private static bool _mulPathLocked;

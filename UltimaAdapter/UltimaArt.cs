@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -9,6 +10,13 @@ namespace Ultima
 {
     public static class Art
     {
+        public static bool Modified;
+        public static readonly Bitmap Empty = new Bitmap(1, 1);
+
+        private static Bitmap[] _cache = new Bitmap[0x14000];
+        private static bool[] _removed = new bool[0x14000];
+        private static readonly Dictionary<int, bool> _patched = new Dictionary<int, bool>();
+
         public static Bitmap GetStatic(int itemID)
         {
             var artLoader = Files.Manager?.Arts;
@@ -22,7 +30,6 @@ namespace Ultima
 
             var artFile = entry.File ?? file;
 
-            // Check for compressed art (UOP)
             if (entry.CompressionFlag != ClassicUO.IO.CompressionType.None)
             {
                 artFile.Seek(entry.Offset, SeekOrigin.Begin);
@@ -50,7 +57,6 @@ namespace Ultima
             if (width <= 0 || height <= 0 || width > 1024 || height > 1024)
                 return null;
 
-            // Read the run-length encoded art data
             var lookups = new int[height];
             for (int i = 0; i < height; i++)
                 lookups[i] = artFile.ReadInt32();
@@ -102,12 +108,86 @@ namespace Ultima
             return bmp;
         }
 
+        public static Bitmap GetStatic(int index, out bool patched, bool checkMaxId = true)
+        {
+            patched = false;
+            if (checkMaxId && index > GetMaxItemId())
+                return null;
+            return GetStatic(index);
+        }
+
+        public static Bitmap GetLand(int index)
+        {
+            return GetLand(index, out bool _);
+        }
+
+        public static Bitmap GetLand(int index, out bool patched)
+        {
+            index &= 0x3FFF;
+            patched = _patched.ContainsKey(index) && _patched[index];
+
+            if (_removed[index])
+                return null;
+
+            if (_cache[index] != null)
+                return _cache[index];
+
+            var artLoader = Files.Manager?.Arts;
+            if (artLoader == null) return null;
+
+            try
+            {
+                var info = artLoader.GetArt((uint)index);
+                if (info.Pixels.IsEmpty || info.Width <= 0 || info.Height <= 0)
+                    return null;
+
+                var bmp = new Bitmap(info.Width, info.Height, PixelFormat.Format32bppArgb);
+                var bmpData = bmp.LockBits(new Rectangle(0, 0, info.Width, info.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+                try
+                {
+                    var pixels = new int[info.Width * info.Height];
+                    for (int i = 0; i < pixels.Length && i < info.Pixels.Length; i++)
+                        pixels[i] = (int)info.Pixels[i];
+                    Marshal.Copy(pixels, 0, bmpData.Scan0, pixels.Length);
+                }
+                finally
+                {
+                    bmp.UnlockBits(bmpData);
+                }
+
+                _cache[index] = bmp;
+                return bmp;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static ushort GetLegalItemId(int itemId, bool checkMaxId = true)
+        {
+            if (itemId < 0 || itemId > 0x3FFF)
+                return 0;
+            return (ushort)itemId;
+        }
+
         public static ushort GetLegalItemId(ushort id)
         {
-            if (id < 0x4000)
-                return id;
+            return (ushort)GetLegalItemId((int)id);
+        }
 
-            return id;
+        public static int GetIdxLength()
+        {
+            var artLoader = Files.Manager?.Arts;
+            if (artLoader?.File?.Entries != null)
+                return artLoader.File.Entries.Length;
+            return 0;
+        }
+
+        public static bool IsUOAHS()
+        {
+            return GetIdxLength() >= 0x13FDC;
         }
 
         public static int GetMaxItemId()
@@ -115,16 +195,15 @@ namespace Ultima
             var artLoader = Files.Manager?.Arts;
             if (artLoader?.File != null)
                 return artLoader.File.Entries.Length - 0x4000;
-
             return 0x3FFF;
         }
 
-        public static bool IsValidLand(ushort id)
+        public static bool IsValidLand(int id)
         {
-            return id < 0x4000;
+            return id >= 0 && id < 0x4000;
         }
 
-        public static bool IsValidStatic(ushort id)
+        public static bool IsValidStatic(int id)
         {
             if (id < 0x4000)
                 return false;
@@ -138,6 +217,93 @@ namespace Ultima
             }
 
             return false;
+        }
+
+        public static void Reload()
+        {
+            _cache = new Bitmap[0x14000];
+            _removed = new bool[0x14000];
+            _patched.Clear();
+            Modified = false;
+        }
+
+        public static void ReplaceStatic(int index, Bitmap bmp)
+        {
+            index &= 0x3FFF;
+            index += 0x4000;
+            _cache[index] = bmp;
+            _removed[index] = false;
+            Modified = true;
+        }
+
+        public static void ReplaceLand(int index, Bitmap bmp)
+        {
+            index &= 0x3FFF;
+            _cache[index] = bmp;
+            _removed[index] = false;
+            Modified = true;
+        }
+
+        public static void RemoveStatic(int index)
+        {
+            index &= 0x3FFF;
+            index += 0x4000;
+            _removed[index] = true;
+            _cache[index] = null;
+            Modified = true;
+        }
+
+        public static void RemoveLand(int index)
+        {
+            index &= 0x3FFF;
+            _removed[index] = true;
+            _cache[index] = null;
+            Modified = true;
+        }
+
+        public static unsafe void Measure(Bitmap bmp, out int xMin, out int yMin, out int xMax, out int yMax)
+        {
+            xMin = yMin = 0;
+            xMax = yMax = -1;
+
+            if (bmp == null || bmp.Width <= 0 || bmp.Height <= 0)
+                return;
+
+            var bmpData = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+            try
+            {
+                int delta = bmpData.Stride / 4;
+                int* line = (int*)bmpData.Scan0;
+
+                xMin = bmp.Width;
+                xMax = 0;
+
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    for (int x = 0; x < bmp.Width; x++)
+                    {
+                        if ((line[x] & 0xFF000000) != 0)
+                        {
+                            if (x < xMin) xMin = x;
+                            if (x > xMax) xMax = x;
+                            if (y < yMin) yMin = y;
+                            if (y > yMax) yMax = y;
+                        }
+                    }
+
+                    line += delta;
+                }
+            }
+            finally
+            {
+                bmp.UnlockBits(bmpData);
+            }
+        }
+
+        public static void Save(string path)
+        {
+            throw new NotSupportedException("Art.Save is not supported in ClassicUO.UltimaSdk adapter");
         }
 
         private static Bitmap DecodeStaticArt(byte[] data)

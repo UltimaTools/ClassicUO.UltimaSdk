@@ -7,6 +7,12 @@ namespace Ultima
         public ushort Id;
         public sbyte Z;
 
+        public Tile(int id, sbyte z)
+        {
+            Id = (ushort)id;
+            Z = z;
+        }
+
         public Tile(ushort id, sbyte z)
         {
             Id = id;
@@ -19,6 +25,13 @@ namespace Ultima
         public ushort Id;
         public int Hue;
         public sbyte Z;
+
+        public HuedTile(int id, short hue, sbyte z)
+        {
+            Id = (ushort)id;
+            Hue = hue;
+            Z = z;
+        }
 
         public HuedTile(ushort id, short hue, sbyte z)
         {
@@ -39,11 +52,29 @@ namespace Ultima
 
         public int Solver { get; set; }
 
+        public MTile(int id, sbyte z)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+            Flag = 1;
+            Solver = 0;
+            Unk1 = 0;
+        }
+
         public MTile(ushort id, sbyte z)
         {
             Id = Art.GetLegalItemId(id);
             Z = z;
             Flag = 1;
+            Solver = 0;
+            Unk1 = 0;
+        }
+
+        public MTile(int id, sbyte z, sbyte flag)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+            Flag = flag;
             Solver = 0;
             Unk1 = 0;
         }
@@ -57,6 +88,15 @@ namespace Ultima
             Unk1 = 0;
         }
 
+        public MTile(int id, sbyte z, sbyte flag, int unk1)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+            Flag = flag;
+            Solver = 0;
+            Unk1 = unk1;
+        }
+
         public MTile(ushort id, sbyte z, sbyte flag, int unk1)
         {
             Id = Art.GetLegalItemId(id);
@@ -66,10 +106,23 @@ namespace Ultima
             Unk1 = unk1;
         }
 
+        public void Set(int id, sbyte z)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+        }
+
         public void Set(ushort id, sbyte z)
         {
             Id = Art.GetLegalItemId(id);
             Z = z;
+        }
+
+        public void Set(int id, sbyte z, sbyte flag)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+            Flag = flag;
         }
 
         public void Set(ushort id, sbyte z, sbyte flag)
@@ -77,6 +130,14 @@ namespace Ultima
             Id = Art.GetLegalItemId(id);
             Z = z;
             Flag = flag;
+        }
+
+        public void Set(int id, sbyte z, sbyte flag, int unk1)
+        {
+            Id = Art.GetLegalItemId((ushort)id);
+            Z = z;
+            Flag = flag;
+            Unk1 = unk1;
         }
 
         public void Set(ushort id, sbyte z, sbyte flag, int unk1)

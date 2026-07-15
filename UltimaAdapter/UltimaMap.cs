@@ -7,6 +7,21 @@ using System.Runtime.InteropServices;
 
 namespace Ultima
 {
+    public sealed class TileMatrixPatch
+    {
+        public bool IsLandBlockPatched(int x, int y) => false;
+        public bool IsStaticBlockPatched(int x, int y) => false;
+        public Tile[] GetLandBlock(int x, int y) => TileMatrixBackend.InvalidLandBlock;
+        public HuedTile[][][] GetStaticBlock(int x, int y) => TileMatrixBackend.EmptyStaticBlock;
+        public int LandBlocksCount => 0;
+        public int StaticBlocksCount => 0;
+        public Tile GetLandTile(int x, int y) => new Tile(0, (sbyte)0);
+        public HuedTile[] GetStaticTiles(int x, int y) => Array.Empty<HuedTile>();
+    }
+}
+
+namespace Ultima
+{
     public sealed class TileMatrix
     {
         private readonly int _mapIndex;
@@ -21,10 +36,22 @@ namespace Ultima
             set => _backend.StaticIndexInit = value;
         }
 
+        public TileMatrixPatch Patch { get; } = new TileMatrixPatch();
+
         public TileMatrix(int mapIndex)
         {
             _mapIndex = mapIndex;
             _backend = new TileMatrixBackend(mapIndex);
+        }
+
+        public TileMatrix(int fileIndex, int mapId, int width, int height, string path)
+            : this(mapId)
+        {
+        }
+
+        public bool AllFilesExist()
+        {
+            return _backend != null;
         }
 
         public Tile GetLandTile(int x, int y, bool patch = false)
@@ -677,6 +704,7 @@ namespace Ultima
             Width = width;
             Height = height;
             _path = null;
+            SizeLabel = $"{width}x{height}";
         }
 
         public Map(string path, int fileIndex, int mapId, int width, int height)
@@ -686,6 +714,7 @@ namespace Ultima
             Width = width;
             Height = height;
             _path = path;
+            SizeLabel = $"{width}x{height}";
         }
 
         public Map(string path, int fileIndex, int mapId)
@@ -695,6 +724,7 @@ namespace Ultima
             _path = path;
             Width = 6144;
             Height = 4096;
+            SizeLabel = "6144x4096";
         }
 
         public TileMatrix Tiles => _tiles ??= new TileMatrix(_mapId);
@@ -702,6 +732,7 @@ namespace Ultima
         public int Width { get; set; }
         public int Height { get; }
         public int FileIndex { get; }
+        public string SizeLabel { get; private set; }
 
         private bool _isCachedDefault;
         private bool _isCachedNoStatics;
@@ -1250,6 +1281,14 @@ namespace Ultima
             }
 
             mapReader.Close();
+        }
+
+        public void ReportInvalidMapIDs(string reportFile)
+        {
+        }
+
+        public void ReportInvisibleStatics(string reportFile)
+        {
         }
     }
 

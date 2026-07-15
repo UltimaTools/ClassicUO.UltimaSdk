@@ -28,6 +28,7 @@ namespace Ultima
         LightSource = 0x00800000,
         Animation = 0x01000000,
         HoverOver = 0x02000000,
+        NoDiagonal = HoverOver,
         Armor = 0x08000000,
         Roof = 0x10000000,
         Door = 0x20000000,

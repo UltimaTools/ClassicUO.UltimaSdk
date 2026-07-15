@@ -12,9 +12,9 @@ namespace Ultima
 
         public int Count { get { return _tiles.Count; } }
 
-        public void Add(ushort id, short hue, sbyte z)
+        public void Add(int id, short hue, sbyte z)
         {
-            _tiles.Add(new HuedTile(id, hue, z));
+            _tiles.Add(new HuedTile((ushort)id, hue, z));
         }
 
         public HuedTile[] ToArray()
@@ -43,9 +43,9 @@ namespace Ultima
 
         public int Count { get { return _tiles.Count; } }
 
-        public void Add(ushort id, sbyte z)
+        public void Add(int id, sbyte z)
         {
-            _tiles.Add(new Tile(id, z));
+            _tiles.Add(new Tile((ushort)id, z));
         }
 
         public Tile[] ToArray()
@@ -78,19 +78,19 @@ namespace Ultima
 
         public int Count { get { return _tiles.Count; } }
 
-        public void Add(ushort id, sbyte z)
+        public void Add(int id, sbyte z)
         {
-            _tiles.Add(new MTile(id, z));
+            _tiles.Add(new MTile((ushort)id, z));
         }
 
-        public void Add(ushort id, sbyte z, sbyte flag)
+        public void Add(int id, sbyte z, sbyte flag)
         {
-            _tiles.Add(new MTile(id, z, flag));
+            _tiles.Add(new MTile((ushort)id, z, flag));
         }
 
-        public void Add(ushort id, sbyte z, sbyte flag, int unk1)
+        public void Add(int id, sbyte z, sbyte flag, int unk1)
         {
-            _tiles.Add(new MTile(id, z, flag, unk1));
+            _tiles.Add(new MTile((ushort)id, z, flag, unk1));
         }
 
         public MTile[] ToArray()
@@ -112,6 +112,14 @@ namespace Ultima
             return _tiles[i];
         }
 
+        public void Set(int i, int id, sbyte z)
+        {
+            if (i < Count)
+            {
+                _tiles[i].Set(id, z);
+            }
+        }
+
         public void Set(int i, ushort id, sbyte z)
         {
             if (i < Count)
@@ -120,11 +128,27 @@ namespace Ultima
             }
         }
 
+        public void Set(int i, int id, sbyte z, sbyte flag)
+        {
+            if (i < Count)
+            {
+                _tiles[i].Set(id, z, flag);
+            }
+        }
+
         public void Set(int i, ushort id, sbyte z, sbyte flag)
         {
             if (i < Count)
             {
                 _tiles[i].Set(id, z, flag);
+            }
+        }
+
+        public void Set(int i, int id, sbyte z, sbyte flag, int unk1)
+        {
+            if (i < Count)
+            {
+                _tiles[i].Set(id, z, flag, unk1);
             }
         }
 

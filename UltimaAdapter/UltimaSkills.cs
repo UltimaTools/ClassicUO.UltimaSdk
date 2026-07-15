@@ -5,15 +5,25 @@ namespace Ultima
 {
     public sealed class SkillInfo
     {
-        public int Index { get; }
+        public int Index { get; set; }
         public string Name { get; }
         public bool IsAction { get; }
+        public int Extra { get; }
 
         internal SkillInfo(int index, string name, bool isAction)
         {
             Index = index;
             Name = name;
             IsAction = isAction;
+            Extra = 0;
+        }
+
+        public SkillInfo(int nr, string name, bool action, int extra)
+        {
+            Index = nr;
+            Name = name;
+            IsAction = action;
+            Extra = extra;
         }
     }
 
@@ -43,6 +53,13 @@ namespace Ultima
                 }
                 return result;
             }
+        }
+
+        public static void Reload() { }
+
+        public static void Save(string path)
+        {
+            // Stub - skills save not implemented
         }
     }
 }
