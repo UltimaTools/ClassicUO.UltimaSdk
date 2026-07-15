@@ -17,30 +17,38 @@ namespace Ultima
 
         public static void Initialize()
         {
-            _path = Files.GetFilePath("verdata.mul");
-            if (_path == null)
+            try
+            {
+                _path = Files.GetFilePath("verdata.mul");
+                if (string.IsNullOrEmpty(_path) || !File.Exists(_path))
+                {
+                    Patches = Array.Empty<Entry5D>();
+                    Stream = Stream.Null;
+                }
+                else
+                {
+                    using (Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (var bin = new BinaryReader(Stream))
+                    {
+                        Patches = new Entry5D[bin.ReadInt32()];
+
+                        for (int i = 0; i < Patches.Length; ++i)
+                        {
+                            Patches[i].File = bin.ReadInt32();
+                            Patches[i].Index = bin.ReadInt32();
+                            Patches[i].Lookup = bin.ReadInt32();
+                            Patches[i].Length = bin.ReadInt32();
+                            Patches[i].Extra = bin.ReadInt32();
+                        }
+                    }
+
+                    Stream.Close();
+                }
+            }
+            catch
             {
                 Patches = Array.Empty<Entry5D>();
                 Stream = Stream.Null;
-            }
-            else
-            {
-                using (Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (var bin = new BinaryReader(Stream))
-                {
-                    Patches = new Entry5D[bin.ReadInt32()];
-
-                    for (int i = 0; i < Patches.Length; ++i)
-                    {
-                        Patches[i].File = bin.ReadInt32();
-                        Patches[i].Index = bin.ReadInt32();
-                        Patches[i].Lookup = bin.ReadInt32();
-                        Patches[i].Length = bin.ReadInt32();
-                        Patches[i].Extra = bin.ReadInt32();
-                    }
-                }
-
-                Stream.Close();
             }
         }
 
