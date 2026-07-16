@@ -78,6 +78,47 @@ namespace Ultima
             reader.Close();
         }
 
+        public MultiComponentList(int multiID, int x, int y)
+        {
+            var baseMulti = Multis.GetComponents(multiID);
+            if (baseMulti == Empty || baseMulti.Count == 0)
+            {
+                SortedTiles = Array.Empty<MultiTileEntry>();
+                Tiles = Array.Empty<MTile[][]>();
+                _min = _max = Point.Empty;
+                return;
+            }
+
+            var tiles = new List<MultiTileEntry>();
+            int minX = 0, minY = 0, maxX = 0, maxY = 0;
+
+            for (int i = 0; i < baseMulti.Count; i++)
+            {
+                var src = baseMulti.SortedTiles[i];
+                int cx = src.m_OffsetX + x;
+                int cy = src.m_OffsetY + y;
+
+                if (cx < minX) minX = cx;
+                if (cy < minY) minY = cy;
+                if (cx > maxX) maxX = cx;
+                if (cy > maxY) maxY = cy;
+
+                tiles.Add(new MultiTileEntry
+                {
+                    m_ItemID = src.m_ItemID,
+                    m_OffsetX = cx,
+                    m_OffsetY = cy,
+                    m_OffsetZ = src.m_OffsetZ,
+                    m_Flag = src.m_Flag
+                });
+            }
+
+            _min = new Point(minX, minY);
+            _max = new Point(maxX, maxY);
+            SortedTiles = tiles.ToArray();
+            RebuildTilesArray();
+        }
+
         public MultiComponentList(MTileList[][] newTiles, int count, int width, int height)
         {
             SortedTiles = new MultiTileEntry[count];
