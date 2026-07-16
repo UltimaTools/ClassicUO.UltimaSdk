@@ -16,95 +16,107 @@ namespace Ultima
         private static Bitmap[] _cache = new Bitmap[0x14000];
         private static bool[] _removed = new bool[0x14000];
         private static readonly Dictionary<int, bool> _patched = new Dictionary<int, bool>();
+        private static FileIndex _fileIndex;
+        private static bool _fileIndexTried;
+        private static byte[] _streamBuffer;
+
+        private static FileIndex GetArtFileIndex()
+        {
+            if (!_fileIndexTried)
+            {
+                _fileIndexTried = true;
+                try
+                {
+                    _fileIndex = new FileIndex("Artidx.mul", "Art.mul", "artLegacyMUL.uop", 0x14000, 4, ".tga", 0x13FDC, false);
+                }
+                catch
+                {
+                    _fileIndex = null;
+                }
+            }
+            return _fileIndex;
+        }
 
         public static Bitmap GetStatic(int itemID)
         {
-            var artLoader = Files.Manager?.Arts;
-            if (artLoader == null) return null;
+            var fi = GetArtFileIndex();
+            if (fi == null) return null;
 
-            var file = artLoader.File;
-            if (file == null) return null;
+            int idx = itemID + 0x4000;
+            Stream stream = fi.Seek(idx, out int length, out int _, out bool patched);
+            if (stream == null) return null;
 
-            ref var entry = ref file.GetValidRefEntry(itemID + 0x4000);
-            if (entry.Equals(ClassicUO.IO.UOFileIndex.Invalid)) return null;
+            return LoadStatic(stream, length);
+        }
 
-            var artFile = entry.File ?? file;
+        private static unsafe Bitmap LoadStaticFromFile(ClassicUO.IO.FileReader artFile, int length)
+        {
+            if (_streamBuffer == null || _streamBuffer.Length < length)
+                _streamBuffer = new byte[length];
 
-            if (entry.CompressionFlag != ClassicUO.IO.CompressionType.None)
+            artFile.Read(new Span<byte>(_streamBuffer, 0, length));
+
+            fixed (byte* data = _streamBuffer)
             {
-                artFile.Seek(entry.Offset, SeekOrigin.Begin);
-                byte[] buf = new byte[entry.Length];
-                artFile.Read(buf);
-
-                byte[] decompressed;
-                if (entry.CompressionFlag == ClassicUO.IO.CompressionType.Zlib)
-                {
-                    decompressed = new byte[entry.DecompressedLength];
-                    ClassicUO.Utility.ZLibManaged.Decompress(buf, 0, buf.Length, 0, decompressed, decompressed.Length);
-                }
-                else
-                {
-                    decompressed = buf;
-                }
-
-                return DecodeStaticArt(decompressed);
+                return DecodeStaticUshort(data, length);
             }
+        }
 
-            artFile.Seek(entry.Offset, SeekOrigin.Begin);
-            int width = artFile.ReadInt16();
-            int height = artFile.ReadInt16();
+        private static unsafe Bitmap LoadStatic(Stream stream, int length)
+        {
+            if (_streamBuffer == null || _streamBuffer.Length < length)
+                _streamBuffer = new byte[length];
+
+            stream.Read(_streamBuffer, 0, length);
+
+            fixed (byte* data = _streamBuffer)
+            {
+                return DecodeStaticUshort(data, length);
+            }
+        }
+
+        private static unsafe Bitmap DecodeStaticUshort(byte* data, int length)
+        {
+            var binData = (ushort*)data;
+            int count = 2;
+            int width = binData[count++];
+            int height = binData[count++];
 
             if (width <= 0 || height <= 0 || width > 1024 || height > 1024)
                 return null;
 
             var lookups = new int[height];
-            for (int i = 0; i < height; i++)
-                lookups[i] = artFile.ReadInt32();
+            int start = height + 4;
 
-            long dataStart = artFile.Position;
+            for (int i = 0; i < height; ++i)
+                lookups[i] = start + binData[count++];
 
-            var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            var bmpData = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            var bmp = new Bitmap(width, height, PixelFormat.Format16bppArgb1555);
+            var bd = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format16bppArgb1555);
 
-            try
+            var line = (ushort*)bd.Scan0;
+            int delta = bd.Stride >> 1;
+
+            for (int y = 0; y < height; ++y, line += delta)
             {
-                var pixels = new int[width * height];
+                count = lookups[y];
+                var cur = line;
 
-                for (int y = 0; y < height; y++)
+                while (true)
                 {
-                    artFile.Seek(dataStart + lookups[y], SeekOrigin.Begin);
-                    int x = 0;
+                    int xOffset = binData[count++];
+                    int xRun = binData[count++];
+                    if (xOffset + xRun == 0)
+                        break;
 
-                    while (x < width)
-                    {
-                        int offset = artFile.ReadUInt16();
-                        int run = artFile.ReadUInt16();
-
-                        if (offset + run == 0)
-                            break;
-
-                        x += offset;
-
-                        for (int i = 0; i < run; i++)
-                        {
-                            ushort val = artFile.ReadUInt16();
-                            int a = (val >> 15) * 255;
-                            int r = ((val >> 10) & 0x1F) * 255 / 31;
-                            int g = ((val >> 5) & 0x1F) * 255 / 31;
-                            int b = (val & 0x1F) * 255 / 31;
-                            pixels[y * width + x] = (a << 24) | (r << 16) | (g << 8) | b;
-                            x++;
-                        }
-                    }
+                    cur += xOffset;
+                    var end = cur + xRun;
+                    while (cur < end)
+                        *cur++ = (ushort)(binData[count++] ^ 0x8000);
                 }
-
-                Marshal.Copy(pixels, 0, bmpData.Scan0, pixels.Length);
-            }
-            finally
-            {
-                bmp.UnlockBits(bmpData);
             }
 
+            bmp.UnlockBits(bd);
             return bmp;
         }
 
@@ -139,7 +151,10 @@ namespace Ultima
             {
                 var info = artLoader.GetArt((uint)index);
                 if (info.Pixels.IsEmpty || info.Width <= 0 || info.Height <= 0)
-                    return null;
+                {
+                    _cache[index] = new Bitmap(44, 44, PixelFormat.Format32bppArgb);
+                    return _cache[index];
+                }
 
                 var bmp = new Bitmap(info.Width, info.Height, PixelFormat.Format32bppArgb);
                 var bmpData = bmp.LockBits(new Rectangle(0, 0, info.Width, info.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
@@ -167,8 +182,10 @@ namespace Ultima
 
         public static ushort GetLegalItemId(int itemId, bool checkMaxId = true)
         {
-            if (itemId < 0 || itemId > 0x3FFF)
-                return 0;
+            if (itemId < 0) return 0;
+            if (!checkMaxId) return (ushort)itemId;
+            int max = GetMaxItemId();
+            if (itemId > max) return 0;
             return (ushort)itemId;
         }
 
@@ -179,9 +196,9 @@ namespace Ultima
 
         public static int GetIdxLength()
         {
-            var artLoader = Files.Manager?.Arts;
-            if (artLoader?.File?.Entries != null)
-                return artLoader.File.Entries.Length;
+            var fi = GetArtFileIndex();
+            if (fi?.IdxLength > 0)
+                return (int)(fi.IdxLength / 12);
             return 0;
         }
 
@@ -192,9 +209,11 @@ namespace Ultima
 
         public static int GetMaxItemId()
         {
-            var artLoader = Files.Manager?.Arts;
-            if (artLoader?.File != null)
-                return artLoader.File.Entries.Length - 0x4000;
+            int len = GetIdxLength();
+            if (len >= 0x13FDC)
+                return 0xFFDC;
+            if (len == 0xC000)
+                return 0x7FFF;
             return 0x3FFF;
         }
 
@@ -205,18 +224,26 @@ namespace Ultima
 
         public static bool IsValidStatic(int id)
         {
-            if (id < 0x4000)
+            id = GetLegalItemId(id);
+            id += 0x4000;
+
+            if (_removed != null && id >= 0 && id < _removed.Length && _removed[id])
                 return false;
 
-            int staticIdx = id - 0x4000;
-            var artLoader = Files.Manager?.Arts;
-            if (artLoader?.File != null && staticIdx < artLoader.File.Entries.Length)
-            {
-                ref var entry = ref artLoader.File.GetValidRefEntry(id);
-                return !entry.Equals(ClassicUO.IO.UOFileIndex.Invalid);
-            }
+            if (_cache != null && id >= 0 && id < _cache.Length && _cache[id] != null)
+                return true;
 
-            return false;
+            var fi = GetArtFileIndex();
+            if (fi == null) return false;
+            Stream stream = fi.Seek(id, out int length, out int _, out bool _);
+            if (stream == null) return false;
+
+            stream.Seek(4, SeekOrigin.Current);
+            byte[] buf = new byte[4];
+            stream.Read(buf, 0, 4);
+            short width = (short)(buf[0] | (buf[1] << 8));
+            short height = (short)(buf[2] | (buf[3] << 8));
+            return width > 0 && height > 0;
         }
 
         public static void Reload()
@@ -225,6 +252,9 @@ namespace Ultima
             _removed = new bool[0x14000];
             _patched.Clear();
             Modified = false;
+            _fileIndex = null;
+            _fileIndexTried = false;
+            _streamBuffer = null;
         }
 
         public static void ReplaceStatic(int index, Bitmap bmp)

@@ -1,9 +1,62 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using CUOAssets = ClassicUO.Assets;
 
 namespace Ultima
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct OldLandTileDataMul
+    {
+        public readonly uint flags;
+        public readonly ushort texID;
+        public fixed byte name[20];
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct NewLandTileDataMul
+    {
+        public readonly ulong flags;
+        public readonly ushort texID;
+        public fixed byte name[20];
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct OldItemTileDataMul
+    {
+        public readonly uint flags;
+        public readonly byte weight;
+        public readonly byte quality;
+        public readonly short miscData;
+        public readonly byte unk2;
+        public readonly byte quantity;
+        public readonly short anim;
+        public readonly byte unk3;
+        public readonly byte hue;
+        public readonly byte stackingOffset;
+        public readonly byte value;
+        public readonly byte height;
+        public fixed byte name[20];
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public unsafe struct NewItemTileDataMul
+    {
+        public readonly ulong flags;
+        public readonly byte weight;
+        public readonly byte quality;
+        public readonly short miscData;
+        public readonly byte unk2;
+        public readonly byte quantity;
+        public readonly short anim;
+        public readonly byte unk3;
+        public readonly byte hue;
+        public readonly byte stackingOffset;
+        public readonly byte value;
+        public readonly byte height;
+        public fixed byte name[20];
+    }
+
     public struct LandData
     {
         public string Name;
@@ -15,6 +68,20 @@ namespace Ultima
             Name = name;
             Flags = flags;
             TextureId = textureId;
+        }
+
+        public unsafe LandData(NewLandTileDataMul mulStruct)
+        {
+            TextureId = mulStruct.texID;
+            Flags = (TileFlag)mulStruct.flags;
+            Name = Ultima.Helpers.TileDataHelpers.ReadNameString(mulStruct.name);
+        }
+
+        public unsafe LandData(OldLandTileDataMul mulStruct)
+        {
+            TextureId = mulStruct.texID;
+            Flags = (TileFlag)mulStruct.flags;
+            Name = Ultima.Helpers.TileDataHelpers.ReadNameString(mulStruct.name);
         }
 
         public void ReadData(string[] split)
@@ -116,6 +183,42 @@ namespace Ultima
             _unk2 = 0;
             _unk3 = 0;
         }
+
+        public unsafe ItemData(NewItemTileDataMul mulStruct)
+        {
+            _name = Ultima.Helpers.TileDataHelpers.ReadNameString(mulStruct.name);
+            _flags = (TileFlag)mulStruct.flags;
+            _weight = mulStruct.weight;
+            _quality = mulStruct.quality;
+            _count = mulStruct.quantity;
+            _value = mulStruct.value;
+            _height = mulStruct.height;
+            _animID = (ushort)mulStruct.anim;
+            _hue = mulStruct.hue;
+            _layer = 0;
+            _stackingOffset = mulStruct.stackingOffset;
+            _miscData = mulStruct.miscData;
+            _unk2 = mulStruct.unk2;
+            _unk3 = mulStruct.unk3;
+        }
+
+        public unsafe ItemData(OldItemTileDataMul mulStruct)
+        {
+            _name = Ultima.Helpers.TileDataHelpers.ReadNameString(mulStruct.name);
+            _flags = (TileFlag)mulStruct.flags;
+            _weight = mulStruct.weight;
+            _quality = mulStruct.quality;
+            _count = mulStruct.quantity;
+            _value = mulStruct.value;
+            _height = mulStruct.height;
+            _animID = (ushort)mulStruct.anim;
+            _hue = mulStruct.hue;
+            _layer = 0;
+            _stackingOffset = mulStruct.stackingOffset;
+            _miscData = mulStruct.miscData;
+            _unk2 = mulStruct.unk2;
+            _unk3 = mulStruct.unk3;
+        }
     }
 
     public static class TileData
@@ -154,22 +257,86 @@ namespace Ultima
             if (_initialized) return;
             _initialized = true;
 
-            var td = Files.Manager?.TileData;
-            if (td == null) return;
+            string filePath = Files.GetFilePath("tiledata.mul");
+            if (filePath == null)
+            {
+                _landTable = Array.Empty<LandData>();
+                _itemTable = Array.Empty<ItemData>();
+                HeightTable = Array.Empty<int>();
+                return;
+            }
 
-            var landSrc = td.LandData;
-            _landTable = new LandData[landSrc.Length];
-            for (int i = 0; i < landSrc.Length; i++)
-                _landTable[i] = new LandData(landSrc[i]);
+            bool useNewFormat = Art.IsUOAHS();
 
-            var staticSrc = td.StaticData;
-            _itemTable = new ItemData[staticSrc.Length];
-            for (int i = 0; i < staticSrc.Length; i++)
-                _itemTable[i] = new ItemData(staticSrc[i]);
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var buffer = new byte[fs.Length];
+                fs.Read(buffer, 0, buffer.Length);
 
-            HeightTable = new int[_itemTable.Length];
-            for (int i = 0; i < _itemTable.Length; i++)
-                HeightTable[i] = _itemTable[i].Height;
+                var gc = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
+                long pos = 0;
+
+                try
+                {
+                    _landTable = new LandData[0x4000];
+                    for (int i = 0; i < 0x4000; i += 32)
+                    {
+                        pos += 4;
+                        for (int cnt = 0; cnt < 32; cnt++)
+                        {
+                            var ptr = new IntPtr(gc.AddrOfPinnedObject().ToInt64() + pos);
+                            if (useNewFormat)
+                            {
+                                pos += Marshal.SizeOf<NewLandTileDataMul>();
+                                _landTable[i + cnt] = new LandData((NewLandTileDataMul)Marshal.PtrToStructure(ptr, typeof(NewLandTileDataMul)));
+                            }
+                            else
+                            {
+                                pos += Marshal.SizeOf<OldLandTileDataMul>();
+                                _landTable[i + cnt] = new LandData((OldLandTileDataMul)Marshal.PtrToStructure(ptr, typeof(OldLandTileDataMul)));
+                            }
+                        }
+                    }
+
+                    long remaining = buffer.Length - pos;
+                    int structSize = useNewFormat ? Marshal.SizeOf<NewItemTileDataMul>() : Marshal.SizeOf<OldItemTileDataMul>();
+                    int headerCount = (int)(remaining / ((structSize * 32) + 4));
+                    int itemLength = headerCount * 32;
+
+                    _itemTable = new ItemData[itemLength];
+                    HeightTable = new int[Math.Max(itemLength, 0x4000)];
+
+                    for (int i = 0; i < itemLength; i += 32)
+                    {
+                        pos += 4;
+                        for (int cnt = 0; cnt < 32; cnt++)
+                        {
+                            var ptr = new IntPtr(gc.AddrOfPinnedObject().ToInt64() + pos);
+                            if (useNewFormat)
+                            {
+                                pos += Marshal.SizeOf<NewItemTileDataMul>();
+                                var cur = (NewItemTileDataMul)Marshal.PtrToStructure(ptr, typeof(NewItemTileDataMul));
+                                _itemTable[i + cnt] = new ItemData(cur);
+                                HeightTable[i + cnt] = cur.height;
+                            }
+                            else
+                            {
+                                pos += Marshal.SizeOf<OldItemTileDataMul>();
+                                var cur = (OldItemTileDataMul)Marshal.PtrToStructure(ptr, typeof(OldItemTileDataMul));
+                                _itemTable[i + cnt] = new ItemData(cur);
+                                HeightTable[i + cnt] = cur.height;
+                            }
+                        }
+                    }
+
+                    for (int i = itemLength; i < HeightTable.Length; i++)
+                        HeightTable[i] = 0;
+                }
+                finally
+                {
+                    gc.Free();
+                }
+            }
         }
 
         public static ItemData GetItemData(int id)

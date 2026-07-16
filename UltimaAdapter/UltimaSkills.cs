@@ -6,9 +6,9 @@ namespace Ultima
     public sealed class SkillInfo
     {
         public int Index { get; set; }
-        public string Name { get; }
-        public bool IsAction { get; }
-        public int Extra { get; }
+        public string Name { get; set; }
+        public bool IsAction { get; set; }
+        public int Extra { get; set; }
 
         internal SkillInfo(int index, string name, bool isAction)
         {

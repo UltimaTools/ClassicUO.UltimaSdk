@@ -601,6 +601,7 @@ namespace Ultima
         private readonly int _mapId;
         private readonly string _path;
         private static bool _useDiff;
+        private static int[] _zeroHeightTable = new int[0x10000];
 
         public static bool UseDiff
         {
@@ -867,9 +868,12 @@ namespace Ultima
 
             Tile[] tiles = Tiles.GetLandBlock(x, y, diff);
 
+            int[] heightTable = TileData.HeightTable;
+            if (heightTable == null || heightTable.Length == 0)
+                heightTable = _zeroHeightTable;
             fixed (ushort* pColors = RadarCol.Colors)
             {
-                fixed (int* pHeight = TileData.HeightTable)
+                fixed (int* pHeight = heightTable)
                 {
                     fixed (Tile* ptTiles = tiles)
                     {

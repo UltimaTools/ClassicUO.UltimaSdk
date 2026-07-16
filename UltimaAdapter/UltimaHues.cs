@@ -208,6 +208,11 @@ namespace Ultima
 
         public static void Initialize() { }
 
+        internal static void Invalidate()
+        {
+            _list = null;
+        }
+
         public static Hue[] List
         {
             get
@@ -220,6 +225,10 @@ namespace Ultima
                         _list = new Hue[3000];
                         for (int i = 0; i < 3000; i++)
                             _list[i] = new Hue(i, loader);
+                    }
+                    else
+                    {
+                        _list = Array.Empty<Hue>();
                     }
                 }
                 return _list;

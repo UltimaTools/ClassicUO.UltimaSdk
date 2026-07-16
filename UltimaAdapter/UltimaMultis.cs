@@ -45,49 +45,37 @@ namespace Ultima
             Tiles = Array.Empty<MTile[][]>();
         }
 
-        public MultiComponentList(int multiID, int x, int y)
+        public MultiComponentList(BinaryReader reader, int count, bool useNewMultiFormat)
         {
-            SortedTiles = Array.Empty<MultiTileEntry>();
-            _min = new Point(0, 0);
-            _max = new Point(0, 0);
+            _min = _max = Point.Empty;
 
-            try
+            SortedTiles = new MultiTileEntry[count];
+
+            for (int i = 0; i < count; ++i)
             {
-                int rawID = multiID & 0x3FFF;
-                var components = Files.Manager?.Multis?.GetMultis((uint)rawID);
-                if (components == null) return;
-
-                var tiles = new List<MultiTileEntry>();
-                int minX = 0, minY = 0, maxX = 0, maxY = 0;
-
-                foreach (var c in components)
+                var mt = new MultiTileEntry
                 {
-                    int cx = c.X + x;
-                    int cy = c.Y + y;
+                    m_ItemID = Art.GetLegalItemId(reader.ReadUInt16()),
+                    m_OffsetX = reader.ReadInt16(),
+                    m_OffsetY = reader.ReadInt16(),
+                    m_OffsetZ = reader.ReadInt16(),
+                    m_Flag = (sbyte)reader.ReadInt32(),
+                };
 
-                    if (cx < minX) minX = cx;
-                    if (cy < minY) minY = cy;
-                    if (cx > maxX) maxX = cx;
-                    if (cy > maxY) maxY = cy;
+                if (useNewMultiFormat)
+                    reader.ReadInt32();
 
-                    tiles.Add(new MultiTileEntry
-                    {
-                        m_ItemID = c.ID,
-                        m_OffsetX = cx,
-                        m_OffsetY = cy,
-                        m_OffsetZ = c.Z,
-                        m_Flag = c.IsVisible ? 1 : 0
-                    });
-                }
+                if (mt.m_OffsetX < _min.X) _min.X = mt.m_OffsetX;
+                if (mt.m_OffsetY < _min.Y) _min.Y = mt.m_OffsetY;
+                if (mt.m_OffsetX > _max.X) _max.X = mt.m_OffsetX;
+                if (mt.m_OffsetY > _max.Y) _max.Y = mt.m_OffsetY;
+                if (mt.m_OffsetZ > MaxHeight) MaxHeight = mt.m_OffsetZ;
 
-                _min = new Point(minX, minY);
-                _max = new Point(maxX, maxY);
-                SortedTiles = tiles.ToArray();
-                RebuildTilesArray();
+                SortedTiles[i] = mt;
             }
-            catch
-            {
-            }
+
+            RebuildTilesArray();
+            reader.Close();
         }
 
         public MultiComponentList(MTileList[][] newTiles, int count, int width, int height)
@@ -184,45 +172,72 @@ namespace Ultima
             if (Width == 0 || Height == 0)
                 return null;
 
-            int maxTileHeight = 0;
-            for (int i = 0; i < SortedTiles.Length; i++)
+            int xMin = 1000, yMin = 1000;
+            int xMax = -1000, yMax = -1000;
+
+            for (int x = 0; x < Width; ++x)
             {
-                int z = SortedTiles[i].m_OffsetZ;
-                if (z > maxTileHeight)
-                    maxTileHeight = z;
+                for (int y = 0; y < Height; ++y)
+                {
+                    foreach (var mTile in Tiles[x][y])
+                    {
+                        Bitmap bmp = Art.GetStatic(mTile.Id);
+                        if (bmp == null) continue;
+
+                        int px = (x - y) * 22;
+                        int py = (x + y) * 22;
+
+                        px -= bmp.Width / 2;
+                        py -= mTile.Z << 2;
+                        py -= bmp.Height;
+
+                        if (px < xMin) xMin = px;
+                        if (py < yMin) yMin = py;
+
+                        px += bmp.Width;
+                        py += bmp.Height;
+
+                        if (px > xMax) xMax = px;
+                        if (py > yMax) yMax = py;
+                    }
+                }
             }
 
-            int imageWidth = Width * 44;
-            int imageHeight = (Height + maxTileHeight / 20) * 44;
+            if (xMax <= xMin || yMax <= yMin)
+                return null;
 
-            var bmp = new Bitmap(imageWidth, imageHeight, PixelFormat.Format32bppArgb);
-            using var g = Graphics.FromImage(bmp);
-            g.Clear(Color.Transparent);
-
-            for (int x = 0; x < Width; x++)
+            var canvas = new Bitmap(xMax - xMin, yMax - yMin);
+            using (var gfx = Graphics.FromImage(canvas))
             {
-                for (int y = 0; y < Height; y++)
+                gfx.Clear(Color.Transparent);
+
+                for (int x = 0; x < Width; ++x)
                 {
-                    var tiles = Tiles[x][y];
-                    if (tiles == null || tiles.Length == 0)
-                        continue;
-
-                    int drawX = x * 44;
-                    int drawY = (y * 44) + (Height * 44) - 44 - (maxTileHeight / 20 * 44);
-
-                    foreach (var tile in tiles)
+                    for (int y = 0; y < Height; ++y)
                     {
-                        var art = Art.GetStatic(tile.Id);
-                        if (art != null)
+                        foreach (var mTile in Tiles[x][y])
                         {
-                            int adjust = maxTileHeight - tile.Z;
-                            g.DrawImage(art, drawX, drawY - (adjust * 2));
+                            if (mTile.Z > maximumHeight) continue;
+
+                            Bitmap bmp = Art.GetStatic(mTile.Id);
+                            if (bmp == null) continue;
+
+                            int px = (x - y) * 22;
+                            int py = (x + y) * 22;
+
+                            px -= bmp.Width / 2;
+                            py -= mTile.Z << 2;
+                            py -= bmp.Height;
+                            px -= xMin;
+                            py -= yMin;
+
+                            gfx.DrawImageUnscaled(bmp, px, py, bmp.Width, bmp.Height);
                         }
                     }
                 }
             }
 
-            return bmp;
+            return canvas;
         }
 
         public void ExportToTextFile(string fileName)
@@ -296,6 +311,9 @@ namespace Ultima
     {
         public const int MaximumMultiIndex = 0x2200;
 
+        private static MultiComponentList[] _components = new MultiComponentList[MaximumMultiIndex];
+        private static FileIndex _fileIndex = new FileIndex("Multi.idx", "Multi.mul", MaximumMultiIndex, 14);
+
         public enum ImportType
         {
             TXT,
@@ -311,48 +329,34 @@ namespace Ultima
 
         public static MultiComponentList GetComponents(int index)
         {
-            var result = new MultiComponentList();
-            var tiles = new List<MultiTileEntry>();
-
-            try
+            if (index >= 0 && index < _components.Length)
             {
-                int rawID = index & 0x3FFF;
-                var components = Files.Manager?.Multis?.GetMultis((uint)rawID);
-                if (components != null)
-                {
-                    int minX = 0, minY = 0, maxX = 0, maxY = 0;
-
-                    foreach (var c in components)
-                    {
-                        if (c.X < minX) minX = c.X;
-                        if (c.Y < minY) minY = c.Y;
-                        if (c.X > maxX) maxX = c.X;
-                        if (c.Y > maxY) maxY = c.Y;
-
-                        tiles.Add(new MultiTileEntry
-                        {
-                            m_ItemID = c.ID,
-                            m_OffsetX = c.X,
-                            m_OffsetY = c.Y,
-                            m_OffsetZ = c.Z,
-                            m_Flag = c.IsVisible ? 1 : 0
-                        });
-                    }
-
-                    result.Min = new Point(minX, minY);
-                    result.Max = new Point(maxX, maxY);
-                }
+                var mcl = _components[index];
+                if (mcl == null)
+                    _components[index] = mcl = Load(index);
+                return mcl;
             }
-            catch
-            {
-            }
-
-            result.SortedTiles = tiles.ToArray();
-            result.RebuildTilesArray();
-            return result;
+            return MultiComponentList.Empty;
         }
 
         public static MultiComponentList Load(int index)
+        {
+            try
+            {
+                Stream stream = _fileIndex.Seek(index, out int length, out int _, out bool _);
+                if (stream == null)
+                    return MultiComponentList.Empty;
+
+                bool isUohs = Art.IsUOAHS();
+                return new MultiComponentList(new BinaryReader(stream), isUohs ? length / 16 : length / 12, isUohs);
+            }
+            catch
+            {
+                return MultiComponentList.Empty;
+            }
+        }
+
+        public static MultiComponentList Load(int index, string path, int width, int height)
         {
             return GetComponents(index);
         }
@@ -365,7 +369,7 @@ namespace Ultima
         public static MultiComponentList ImportFromFile(int index, string fileName, ImportType type)
         {
             if (!File.Exists(fileName))
-                return Empty;
+                return MultiComponentList.Empty;
 
             try
             {
@@ -380,13 +384,11 @@ namespace Ultima
                     var parts = line.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length < 4) continue;
 
-                    int idIdx = 0, xIdx = 1, yIdx = 2, zIdx = 3, flagIdx = 4;
-
                     if (type == ImportType.WSC)
                     {
                         if (line.Contains("ID\t"))
                         {
-                            idIdx = Array.IndexOf(parts, "ID");
+                            int idIdx = Array.IndexOf(parts, "ID");
                             if (idIdx >= 0 && idIdx + 1 < parts.Length)
                             {
                                 var entry = new MultiTileEntry();
@@ -404,15 +406,15 @@ namespace Ultima
                     if (type == ImportType.UOA)
                     {
                         var entry = new MultiTileEntry();
-                        if (parts[idIdx].StartsWith("0x"))
-                            entry.m_ItemID = Convert.ToInt32(parts[idIdx], 16);
+                        if (parts[0].StartsWith("0x"))
+                            entry.m_ItemID = Convert.ToInt32(parts[0], 16);
                         else
-                            int.TryParse(parts[idIdx], out entry.m_ItemID);
-                        int.TryParse(parts[xIdx], out entry.m_OffsetX);
-                        int.TryParse(parts[yIdx], out entry.m_OffsetY);
-                        int.TryParse(parts[zIdx], out entry.m_OffsetZ);
-                        if (parts.Length > flagIdx)
-                            int.TryParse(parts[flagIdx], out entry.m_Flag);
+                            int.TryParse(parts[0], out entry.m_ItemID);
+                        int.TryParse(parts[1], out entry.m_OffsetX);
+                        int.TryParse(parts[2], out entry.m_OffsetY);
+                        int.TryParse(parts[3], out entry.m_OffsetZ);
+                        if (parts.Length > 4)
+                            int.TryParse(parts[4], out entry.m_Flag);
                         else
                             entry.m_Flag = 1;
                         entries.Add(entry);
@@ -436,7 +438,7 @@ namespace Ultima
             }
             catch
             {
-                return Empty;
+                return MultiComponentList.Empty;
             }
         }
 
@@ -452,37 +454,25 @@ namespace Ultima
 
         public static void Add(int index, MultiComponentList comp)
         {
-            // Stub - multi add not implemented
+            if (index >= 0 && index < _components.Length)
+                _components[index] = comp;
         }
 
         public static void Remove(int index)
         {
-            // Stub - multi remove not implemented
+            if (index >= 0 && index < _components.Length)
+                _components[index] = MultiComponentList.Empty;
         }
 
         public static void Reload()
         {
-            // Stub - multi reload not implemented
+            _fileIndex = new FileIndex("Multi.idx", "Multi.mul", MaximumMultiIndex, 14);
+            _components = new MultiComponentList[MaximumMultiIndex];
         }
 
         public static void Save(string path)
         {
             throw new NotSupportedException("Multis.Save is not supported in ClassicUO.UltimaSdk adapter");
-        }
-
-        private static MultiComponentList _empty;
-
-        private static MultiComponentList Empty
-        {
-            get
-            {
-                if (_empty == null)
-                {
-                    _empty = new MultiComponentList();
-                    _empty.SortedTiles = Array.Empty<MultiTileEntry>();
-                }
-                return _empty;
-            }
         }
     }
 }

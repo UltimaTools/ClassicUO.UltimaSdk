@@ -24,7 +24,36 @@ namespace Ultima
         private static string _uoDirectory;
         private static bool _mulPathLocked;
 
-        public static CUOAssets.UOFileManager Manager => _manager;
+        public static CUOAssets.UOFileManager Manager
+        {
+            get
+            {
+                if (_manager == null)
+                {
+                    InitManager();
+                }
+                return _manager;
+            }
+        }
+
+        private static void InitManager()
+        {
+            if (_manager != null) return;
+
+            string dir = !string.IsNullOrEmpty(RootDir) ? RootDir : _uoDirectory;
+            if (string.IsNullOrEmpty(dir)) return;
+
+            try
+            {
+                var version = DetectVersion(dir);
+                _manager = new CUOAssets.UOFileManager(version, dir);
+                _manager.Load(true, "ENU");
+            }
+            catch
+            {
+                _manager = null;
+            }
+        }
 
         public static string Directory
         {
@@ -33,6 +62,8 @@ namespace Ultima
             {
                 _uoDirectory = value;
                 RootDir = value;
+                _manager?.Dispose();
+                _manager = null;
             }
         }
 
@@ -87,6 +118,7 @@ namespace Ultima
         {
             _uoDirectory = path;
             RootDir = path;
+            ReInitialize();
         }
 
         public static void SetMulPath(string path, string key)
@@ -95,6 +127,33 @@ namespace Ultima
             {
                 _manager.SetFileOverride(key, path);
             }
+        }
+
+        private static void ReInitialize()
+        {
+            _manager?.Dispose();
+            _manager = null;
+
+            TileData.Reset();
+            Hues.Invalidate();
+            Art.Reload();
+            Gumps.Reload();
+
+            if (!string.IsNullOrEmpty(RootDir))
+            {
+                var version = DetectVersion(RootDir);
+                _manager = new CUOAssets.UOFileManager(version, RootDir);
+                _manager.Load(true, "ENU");
+            }
+        }
+
+        private static CUOUtility.ClientVersion DetectVersion(string path)
+        {
+            if (File.Exists(Path.Combine(path, "MainMisc.uop")))
+                return CUOUtility.ClientVersion.CV_7000;
+            if (File.Exists(Path.Combine(path, "art.mul")) || File.Exists(Path.Combine(path, "artidx.mul")))
+                return CUOUtility.ClientVersion.CV_5090;
+            return CUOUtility.ClientVersion.CV_7000;
         }
 
         public static void LoadMulPath()
