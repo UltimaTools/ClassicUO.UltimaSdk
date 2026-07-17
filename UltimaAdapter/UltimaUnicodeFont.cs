@@ -153,7 +153,7 @@ namespace Ultima
                     continue;
 
                 Fonts[i] = new UnicodeFont();
-                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     using (var bin = new BinaryReader(fs))
                     {

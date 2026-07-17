@@ -26,7 +26,7 @@ namespace Ultima
             if (path == null)
                 return;
 
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var bin = new BinaryReader(fs))
             {
                 unsafe

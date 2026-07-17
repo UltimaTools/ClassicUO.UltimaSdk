@@ -15,7 +15,7 @@ namespace Ultima
             if (path == null)
                 return null;
 
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var bin = new BinaryReader(fs))
             {
                 int x = 0;
@@ -131,7 +131,7 @@ namespace Ultima
                 return null;
 
             Bitmap bmp;
-            using (var reader = new BinaryReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)))
+            using (var reader = new BinaryReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
             {
                 int width = reader.ReadInt16();
                 int height = reader.ReadInt16();

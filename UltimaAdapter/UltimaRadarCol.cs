@@ -40,7 +40,7 @@ namespace Ultima
             string path = Files.GetFilePath("radarcol.mul");
             if (path != null)
             {
-                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     Colors = new ushort[fs.Length / 2];
                     GCHandle gc = GCHandle.Alloc(Colors, GCHandleType.Pinned);

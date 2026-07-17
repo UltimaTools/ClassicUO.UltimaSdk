@@ -30,7 +30,7 @@ namespace Ultima
             const int capacity = 6500;
             Entries = new List<SpeechEntry>(capacity);
 
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var bin = new BinaryReader(fs))
             {
                 int order = 0;

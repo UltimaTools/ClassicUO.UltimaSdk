@@ -128,7 +128,6 @@ namespace Ultima
                 FileAccessor.ApplyPatch(patch);
             }
         }
-
         public Stream Seek(int index, out int length, out int extra, out bool patched)
         {
             if (FileAccessor is null)
@@ -173,7 +172,7 @@ namespace Ultima
 
             if ((FileAccessor.Stream?.CanRead != true) || (!FileAccessor.Stream.CanSeek))
             {
-                FileAccessor.Stream = _mulPath == null ? null : new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileAccessor.Stream = _mulPath == null ? null : new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
 
             if (FileAccessor.Stream == null)
@@ -195,7 +194,6 @@ namespace Ultima
             FileAccessor.Stream.Seek(e.Lookup, SeekOrigin.Begin);
             return FileAccessor.Stream;
         }
-
         public bool Valid(int index, out int length, out int extra, out bool patched)
         {
             if (FileAccessor is null)
@@ -246,7 +244,7 @@ namespace Ultima
 
             if ((FileAccessor.Stream?.CanRead != true) || (!FileAccessor.Stream.CanSeek))
             {
-                FileAccessor.Stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileAccessor.Stream = new FileStream(_mulPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
 
             if (FileAccessor.Stream.Length < e.Lookup)
@@ -354,14 +352,14 @@ namespace Ultima
         public int IndexLength => Index.Length;
 
         public IEntry this[int index] { get => Index[index]; set => Index[index] = (Entry3D)value; }
-
         public MulFileAccessor(string idxPath, string path, int length)
         {
             Index = new Entry3D[length];
 
-            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            // FileShare.ReadWrite lets us read these files while the live UO client has them open.
+            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 var count = (int)(index.Length / 12);
                 IdxLength = index.Length;
                 GCHandle gc = GCHandle.Alloc(Index, GCHandleType.Pinned);
@@ -377,12 +375,12 @@ namespace Ultima
                 }
             }
         }
-
         public MulFileAccessor(string idxPath, string path)
         {
-            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            // FileShare.ReadWrite lets us read these files while the live UO client has them open.
+            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 var count = (int)(index.Length / 12);
                 IdxLength = index.Length;
                 Index = new Entry3D[count];
@@ -393,7 +391,6 @@ namespace Ultima
                 gc.Free();
             }
         }
-
         public void ApplyPatch(Entry5D patch)
         {
             Index[patch.Index].Lookup = patch.Lookup;
@@ -425,7 +422,6 @@ namespace Ultima
             get => Index[index];
             set => Index[index] = (Entry6D)value;
         }
-
         public UopFileAccessor(string path, string uopEntryExtension, int length, int idxLength, bool hasextra)
         {
             Index = new Entry6D[length];
@@ -433,7 +429,12 @@ namespace Ultima
             if (idxLength > 0)
                 IdxLength = idxLength * 12;
 
-            Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Use ReadWrite sharing so we can read client data files while the live UO client
+            // (or another tool) has them open. FileShare.Read alone throws IOException in that
+            // case, which callers swallow, silently corrupting downstream data (e.g. this caused
+            // Art.IsUOAHS() to misreport, making TileData parse tiledata.mul with the wrong
+            // (old 4-byte-flags) record layout).
+            Stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             var fileInfo = new FileInfo(path);
             string uopPattern = fileInfo.Name.Replace(fileInfo.Extension, "").ToLowerInvariant();
@@ -530,7 +531,6 @@ namespace Ultima
                 while (br.BaseStream.Seek(nextBlock, SeekOrigin.Begin) != 0);
             }
         }
-
         public void ApplyPatch(Entry5D patch)
         {
             Index[patch.Index].Lookup = patch.Lookup;

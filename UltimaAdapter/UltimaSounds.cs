@@ -211,7 +211,7 @@ namespace Ultima
 
         public static void Add(int id, string name, string file)
         {
-            using (FileStream wav = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream wav = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 byte[] resultBuffer = new byte[wav.Length];
                 wav.Seek(0, SeekOrigin.Begin);

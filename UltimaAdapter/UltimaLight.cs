@@ -25,7 +25,7 @@ namespace Ultima
             if (idxPath == null)
                 return 0;
 
-            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var index = new FileStream(idxPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 return (int)(index.Length / 12);
             }

@@ -68,7 +68,7 @@ namespace Ultima
             if (path == null)
                 return;
 
-            using (var reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 var buffer = new byte[(int)reader.Length];
                 reader.Read(buffer, 0, (int)reader.Length);

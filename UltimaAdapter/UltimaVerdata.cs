@@ -27,7 +27,7 @@ namespace Ultima
                 }
                 else
                 {
-                    using (Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                     using (var bin = new BinaryReader(Stream))
                     {
                         Patches = new Entry5D[bin.ReadInt32()];
@@ -56,7 +56,7 @@ namespace Ultima
         {
             if ((Stream?.CanRead != true || !Stream.CanSeek) && _path != null)
             {
-                Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                Stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
 
             _ = Stream.Seek(lookup, SeekOrigin.Begin);

@@ -320,9 +320,9 @@ namespace Ultima
             if (_indexPath == null)
                 return;
 
-            using (var index = new FileStream(_indexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var index = new FileStream(_indexPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                _statics = new FileStream(_staticsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                _statics = new FileStream(_staticsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
                 GCHandle gc = GCHandle.Alloc(_staticIndex, GCHandleType.Pinned);
                 var buffer = new byte[index.Length];
@@ -349,7 +349,7 @@ namespace Ultima
                 InitStatics();
 
             if (_statics?.CanRead != true || !_statics.CanSeek)
-                _statics = _staticsPath == null ? null : new FileStream(_staticsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                _statics = _staticsPath == null ? null : new FileStream(_staticsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             if (_statics == null)
                 return EmptyStaticBlock;
@@ -553,7 +553,7 @@ namespace Ultima
         {
             if (_map?.CanRead != true || !_map.CanSeek)
             {
-                _map = _mapPath == null ? null : new FileStream(_mapPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                _map = _mapPath == null ? null : new FileStream(_mapPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
                 if (IsUOPFormat && _mapPath != null && !IsUOPAlreadyRead)
                 {
@@ -1025,7 +1025,7 @@ namespace Ultima
             BinaryReader indexReader;
             if (indexPath != null)
             {
-                FileStream index = new FileStream(indexPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileStream index = new FileStream(indexPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 indexReader = new BinaryReader(index);
             }
             else
@@ -1039,7 +1039,7 @@ namespace Ultima
             BinaryReader staticsReader;
             if (staticsPath != null)
             {
-                staticsStream = new FileStream(staticsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                staticsStream = new FileStream(staticsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 staticsReader = new BinaryReader(staticsStream);
             }
             else
@@ -1221,7 +1221,7 @@ namespace Ultima
             BinaryReader mapReader;
             if (mapPath != null)
             {
-                FileStream mapStream = new FileStream(mapPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileStream mapStream = new FileStream(mapPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 mapReader = new BinaryReader(mapStream);
             }
             else
