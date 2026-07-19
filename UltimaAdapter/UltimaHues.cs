@@ -1,10 +1,10 @@
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
+using Ultima.Drawing;
+using Ultima.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using SDColor = System.Drawing.Color;
+using SDColor = Ultima.Drawing.Color;
 using CUOAssets = ClassicUO.Assets;
 
 namespace Ultima

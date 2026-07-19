@@ -195,7 +195,7 @@ Some upstream changes were intentionally NOT synced because they introduce exter
 - `<Nullable>disable</Nullable>` — do NOT enable nullable. `NotNullAttribute` polyfill works as decoration only.
 - `LangVersion` must be `preview` because the upstream uses C# 12 features (collection expressions, `[InlineArray]`) that the compiler needs to parse even when producing net472 IL.
 - `GenerateAssemblyInfo` and `GenerateTargetFrameworkAttribute` are `false` — hand-maintained `AssemblyInfo.cs` in `Properties/` (if it exists).
-- The `UltimaAdapter/` files use `System.Drawing.Common` which only works on `net10.0-windows`. Suppressed via `CA1416` in the csproj.
+- The `UltimaAdapter/` files use a custom lightweight bitmap implementation in `Ultima.Drawing` instead of `System.Drawing.Common`, so the library works on `net472`, `net8.0-windows`, and `net10.0` without requiring GDI+ or `libgdiplus`.
 - When syncing from upstream, check for **new** `[InlineArray]`, `Span<>.Sort()`, `Encoding.GetString(Span)`, and `Unsafe.SkipInit` usages. These are the most common compatibility breakers.
 - The upstream occasionally changes struct sizes (e.g., adding a field). If you add an `[InlineArray]` struct, compute the Size value carefully and verify with `Unsafe.SizeOf<T>()` (or check the struct layout manually).
 - `System.Buffers`, `System.Memory`, `System.Runtime.CompilerServices.Unsafe`, and `System.Numerics.Vectors` are managed via `Directory.Packages.props` for net472. `System.Drawing.Common` is only for net10.0 (adapter).

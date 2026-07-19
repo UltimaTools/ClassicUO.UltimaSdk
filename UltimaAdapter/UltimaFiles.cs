@@ -109,6 +109,26 @@ namespace Ultima
                 string candidate = Path.Combine(RootDir, file);
                 if (File.Exists(candidate))
                     return candidate;
+
+                // Case-insensitive fallback for Linux/macOS
+                if (!ClassicUO.Utility.Platforms.PlatformHelper.IsWindows)
+                {
+                    try
+                    {
+                        var dirPath = System.IO.Path.GetFullPath(RootDir);
+                        if (System.IO.Directory.Exists(dirPath))
+                        {
+                            foreach (var f in System.IO.Directory.GetFiles(dirPath))
+                            {
+                                if (string.Equals(f, candidate, StringComparison.OrdinalIgnoreCase))
+                                    return f;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
             }
 
             return Path.Combine(_uoDirectory ?? "", file);
@@ -149,11 +169,38 @@ namespace Ultima
 
         private static CUOUtility.ClientVersion DetectVersion(string path)
         {
-            if (File.Exists(Path.Combine(path, "MainMisc.uop")))
+            if (FileExistsCaseInsensitive(path, "MainMisc.uop"))
                 return CUOUtility.ClientVersion.CV_7000;
-            if (File.Exists(Path.Combine(path, "art.mul")) || File.Exists(Path.Combine(path, "artidx.mul")))
+            if (FileExistsCaseInsensitive(path, "art.mul") || FileExistsCaseInsensitive(path, "artidx.mul"))
                 return CUOUtility.ClientVersion.CV_5090;
             return CUOUtility.ClientVersion.CV_7000;
+        }
+
+        private static bool FileExistsCaseInsensitive(string directory, string file)
+        {
+            string candidate = Path.Combine(directory, file);
+            if (File.Exists(candidate))
+                return true;
+
+            if (ClassicUO.Utility.Platforms.PlatformHelper.IsWindows)
+                return false;
+
+            try
+            {
+                if (System.IO.Directory.Exists(directory))
+                {
+                    foreach (var f in System.IO.Directory.GetFiles(directory))
+                    {
+                        if (string.Equals(f, candidate, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
 
         public static void LoadMulPath()

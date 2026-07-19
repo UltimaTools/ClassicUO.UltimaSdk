@@ -12,18 +12,50 @@ namespace ClassicUO.IO
         {
             _OverrideFile = overrideFile;
         }
-        
-        public void Load()
+
+        private static string ResolveCaseInsensitive(string path)
         {
-            if (!File.Exists(_OverrideFile))
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            if (System.IO.File.Exists(path))
+                return path;
+
+            if (ClassicUO.Utility.Platforms.PlatformHelper.IsWindows)
+                return null;
+
+            try
             {
-                Log.Trace($"No Override File found, ignoring.");
-                return; // if the file doesn't exist then we ignore
+                string dir = System.IO.Path.GetDirectoryName(path);
+                string name = System.IO.Path.GetFileName(path);
+                if (System.IO.Directory.Exists(dir))
+                {
+                    foreach (var f in System.IO.Directory.GetFiles(dir))
+                    {
+                        if (string.Equals(f, path, StringComparison.OrdinalIgnoreCase))
+                            return f;
+                    }
+                }
+            }
+            catch
+            {
             }
 
-            Log.Trace($"Loading Override File:\t\t{_OverrideFile}");
+            return null;
+        }
 
-            using (FileStream stream = new FileStream(_OverrideFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+        public void Load()
+        {
+            string resolvedPath = ResolveCaseInsensitive(_OverrideFile);
+            if (resolvedPath == null)
+            {
+                Log.Trace($"No Override File found, ignoring.");
+                return;
+            }
+
+            Log.Trace($"Loading Override File:\t\t{resolvedPath}");
+
+            using (FileStream stream = new FileStream(resolvedPath, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (StreamReader reader = new StreamReader(stream))
             {
                 // we will gracefully ignore any failures when trying to read
