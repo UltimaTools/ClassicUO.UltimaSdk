@@ -44,6 +44,8 @@ namespace Ultima.Drawing
             Array.Copy(source._pixels, _pixels, _pixels.Length);
         }
 
+        public Bitmap Clone() => new Bitmap(this);
+
         public BitmapData LockBits(Rectangle rect, ImageLockMode mode, PixelFormat format)
         {
             if (_activeLock != null)
