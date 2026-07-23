@@ -1,7 +1,9 @@
 using System;
+using System.Runtime.InteropServices;
 
 namespace Ultima
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Tile
     {
         public ushort Id;
@@ -20,6 +22,7 @@ namespace Ultima
         }
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct HuedTile
     {
         public ushort Id;
