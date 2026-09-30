@@ -195,7 +195,7 @@ namespace Ultima
             _height = mulStruct.height;
             _animID = (ushort)mulStruct.anim;
             _hue = mulStruct.hue;
-            _layer = 0;
+            _layer = mulStruct.quality;
             _stackingOffset = mulStruct.stackingOffset;
             _miscData = mulStruct.miscData;
             _unk2 = mulStruct.unk2;
@@ -213,7 +213,7 @@ namespace Ultima
             _height = mulStruct.height;
             _animID = (ushort)mulStruct.anim;
             _hue = mulStruct.hue;
-            _layer = 0;
+            _layer = mulStruct.quality;
             _stackingOffset = mulStruct.stackingOffset;
             _miscData = mulStruct.miscData;
             _unk2 = mulStruct.unk2;
