@@ -67,7 +67,7 @@ namespace Ultima
             if (_streamBuffer == null || _streamBuffer.Length < length)
                 _streamBuffer = new byte[length];
 
-            stream.Read(_streamBuffer, 0, length);
+            stream.ReadStreamFully(_streamBuffer, 0, length);
 
             fixed (byte* data = _streamBuffer)
             {
@@ -240,7 +240,7 @@ namespace Ultima
 
             stream.Seek(4, SeekOrigin.Current);
             byte[] buf = new byte[4];
-            stream.Read(buf, 0, 4);
+            stream.ReadStreamFully(buf, 0, 4);
             short width = (short)(buf[0] | (buf[1] << 8));
             short height = (short)(buf[2] | (buf[3] << 8));
             return width > 0 && height > 0;

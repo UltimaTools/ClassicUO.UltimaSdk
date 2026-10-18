@@ -98,7 +98,7 @@ namespace Ultima
 
             byte[] streamBuffer = new byte[max];
 
-            stream.Read(streamBuffer, 0, max);
+            stream.ReadStreamFully(streamBuffer, 0, max);
 
             fixed (byte* data = streamBuffer)
             {

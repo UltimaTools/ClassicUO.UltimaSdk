@@ -71,7 +71,7 @@ namespace Ultima
             using (var reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 var buffer = new byte[(int)reader.Length];
-                reader.Read(buffer, 0, (int)reader.Length);
+                reader.ReadStreamFully(buffer, 0, (int)reader.Length);
                 fixed (byte* bin = buffer)
                 {
                     byte* read = bin;

@@ -271,7 +271,7 @@ namespace Ultima
             using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 var buffer = new byte[fs.Length];
-                fs.Read(buffer, 0, buffer.Length);
+                fs.ReadStreamFully(buffer, 0, buffer.Length);
 
                 var gc = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
                 long pos = 0;

@@ -83,7 +83,7 @@ namespace Ultima
                 width = fiExtra & 0xFFFF;
                 height = (fiExtra >> 16) & 0xFFFF;
                 var result = new byte[fiLength];
-                fiStream.Read(result, 0, fiLength);
+                fiStream.ReadStreamFully(result, 0, fiLength);
                 return result;
             }
 
@@ -181,7 +181,7 @@ namespace Ultima
             if (fiEntry.Flag == CompressionFlag.Zlib)
             {
                 byte[] compressed = new byte[fiLength];
-                fiStream.Read(compressed, 0, fiLength);
+                fiStream.ReadStreamFully(compressed, 0, fiLength);
                 byte[] decompressed = new byte[fiEntry.DecompressedLength];
                 ClassicUO.Utility.ZLibManaged.Decompress(compressed, 0, compressed.Length, 0, decompressed, decompressed.Length);
 
@@ -228,7 +228,7 @@ namespace Ultima
                     try
                     {
                         byte[] rawData = new byte[fiLength];
-                        fiStream.Read(rawData, 0, fiLength);
+                        fiStream.ReadStreamFully(rawData, 0, fiLength);
                         Marshal.Copy(rawData, 0, bmpData.Scan0, Math.Min(rawData.Length, Math.Abs(bmpData.Stride) * height));
                     }
                     finally
